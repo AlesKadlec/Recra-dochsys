@@ -319,12 +319,11 @@ if (kontrola_prihlaseni() == "OK")
             <div class="container-fluid">
 
             <div class="d-grid gap-2 d-md-flex justify-content-md-center d-print-none">
-                <form class="row g-3" action="report4.php?typ=filtr" method="post">
+                <form id="topFiltersForm" class="row gx-2 gy-1 align-items-center" action="report4.php?typ=filtr" method="post">
 
-                    <div class="col-auto">
-                        <label for="datepicker">Výběr cílové st.</label>
+                    <div class="col-auto d-flex align-items-center gap-2"><label for="cilova" class="mb-0 text-nowrap">Výběr cílové st.</label>
 
-                        <select class="form-select mt-2" id="cilova" name="cilova">
+                        <select class="form-select" id="cilova" name="cilova" style="min-width:170px;">
 
                             <?php
                             global $conn;
@@ -365,18 +364,19 @@ if (kontrola_prihlaseni() == "OK")
                         </select>
                     </div>
 
-                    <div class="col-auto">
-                        <label for="datepicker">Výběr měsíce</label>
+                    <div class="col-auto d-flex align-items-center gap-2"><label for="mesic" class="mb-0 text-nowrap">Výběr měsíce</label>
 
-                        <select class="form-select mt-2" id="mesic" name="mesic">
+                        <div class="d-flex align-items-center gap-1">
+                            <button type="button" class="btn btn-outline-secondary" title="Předchozí měsíc" onclick="posunMesicTop(-1)"><i class="bi bi-chevron-left"></i></button>
+                            <select class="form-select" id="mesic" name="mesic" style="min-width:140px;">
 
                         <?php
                         $start = new DateTime("2023-10-01");
                         $end = new DateTime("first day of this month");
-                        $end->modify("+2 months");
+                        $end->modify("+6 months"); // aktuální měsíc + 6 měsíců dopředu
 
                         $interval = new DateInterval("P1M");
-                        $period = new DatePeriod($start, $interval, $end->modify("+1 month"));
+                        $period = new DatePeriod($start, $interval, (clone $end)->modify("+1 month"));
 
                         $mesice = [];
                         foreach ($period as $dt) {
@@ -393,14 +393,15 @@ if (kontrola_prihlaseni() == "OK")
                         }
                         ?>
                         </select>
+                            <button type="button" class="btn btn-outline-secondary" title="Další měsíc" onclick="posunMesicTop(1)"><i class="bi bi-chevron-right"></i></button>
+                        </div>
 
                     </div>
 
                     <input type="hidden" id="hid_mesic" name="hid_mesic" value="<?php echo htmlspecialchars($vybranyMesic, ENT_QUOTES); ?>">
 
-                    <div class="col-auto">
-                        <label for="vyber"> </label>
-                        <button type="submit" class="form-control btn btn-primary mt-2">Proveď výběr</button>
+                    <div class="col-auto d-flex align-items-center">
+                        <button type="submit" class="btn btn-primary">Proveď výběr</button>
                     </div>
 
                 </form>
@@ -423,7 +424,7 @@ if (kontrola_prihlaseni() == "OK")
                     AND cilova = '" . $cilova . "'
                 ORDER BY prijmeni";
 
-            echo "<br>";
+            echo "<div style='height:6px'></div>";
 
             if (!($vysledek = mysqli_query($conn, $dotaz)))
             {
@@ -446,7 +447,7 @@ if (kontrola_prihlaseni() == "OK")
             <div class="col col-md-12">
 
             <?php
-            echo "<br>";
+            echo "<div style='height:6px'></div>";
             echo "<div class='table-responsive-lg text-center'>";
             echo "<table class='table table-hover'>";
             echo "<thead>";
@@ -579,8 +580,10 @@ if (kontrola_prihlaseni() == "OK")
                     $transport_tooltip = "Nástupní stanice:<br>" . $zastavka_trim;
                 }
 
-                // --- telefon ---
+                                // --- telefon ---
                 $telefon_raw = trim((string)($value['telefon'] ?? ''));
+                $telefon_call_href = '';
+
                 if ($telefon_raw !== '') {
                     $telefon_tooltip = "Telefon:<br>" . $telefon_raw;
                     $telefon_span = "<span class='tooltip-symbol ms-1'
@@ -588,11 +591,18 @@ if (kontrola_prihlaseni() == "OK")
                         data-bs-placement='top'
                         data-bs-html='true'
                         title='" . htmlspecialchars($telefon_tooltip, ENT_QUOTES, 'UTF-8') . "'>📞</span>";
+
+                    $telefon_dial = preg_replace('/[^0-9+]/', '', $telefon_raw);
+                    if ($telefon_dial !== '' && strpos($telefon_dial, '00') === 0) {
+                        $telefon_dial = '+' . substr($telefon_dial, 2);
+                    }
+                    if ($telefon_dial !== '') {
+                        $telefon_call_href = 'tel:' . $telefon_dial;
+                    }
                 } else {
                     $telefon_span = "";
                 }
-
-                $transport_span = "<span class='tooltip-symbol ms-1' data-bs-toggle='tooltip' data-bs-placement='top' data-bs-html='true' title='"
+$transport_span = "<span class='tooltip-symbol ms-1' data-bs-toggle='tooltip' data-bs-placement='top' data-bs-html='true' title='"
                                 . htmlspecialchars($transport_tooltip, ENT_QUOTES, 'UTF-8') . "'>$transport_icon</span>";
 
                 $tooltip_span = "<span class='tooltip-symbol ms-1' data-bs-toggle='tooltip' data-bs-placement='top' data-bs-html='true' title='"
@@ -717,6 +727,17 @@ if (kontrola_prihlaseni() == "OK")
                             onclick="openVystupModal(event, <?php echo (int)$id; ?>, '<?php echo htmlspecialchars(get_name_from_id_zam($id), ENT_QUOTES, 'UTF-8'); ?>', '<?php echo htmlspecialchars($current_vystup_modal, ENT_QUOTES, 'UTF-8'); ?>')">
                         <i class="bi bi-door-closed"></i>
                     </button>
+
+                    <?php if ($telefon_call_href !== ''): ?>
+                    <a href="<?php echo htmlspecialchars($telefon_call_href, ENT_QUOTES, 'UTF-8'); ?>"
+                       class="btn btn-outline-success btn-sm"
+                       data-bs-toggle="tooltip"
+                       data-bs-placement="top"
+                       title="Zavolat"
+                       onclick="event.stopPropagation();">
+                        <i class="bi bi-telephone"></i>
+                    </a>
+                    <?php endif; ?>
                 </div>
                 <?php
 
@@ -776,17 +797,6 @@ if (kontrola_prihlaseni() == "OK")
                 echo "</tr>";
             }
 
-            // inicializace všech tooltipů (Bootstrap 5)
-            echo <<<HTML
-            <script>
-            document.addEventListener("DOMContentLoaded", function() {
-                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-                tooltipTriggerList.map(function (tooltipTriggerEl) {
-                    return new bootstrap.Tooltip(tooltipTriggerEl);
-                });
-            });
-            </script>
-            HTML;
 
             $priorita_typu = ['R', 'O', 'N'];
             $serazene_typy = [];
@@ -1109,7 +1119,94 @@ document.addEventListener('DOMContentLoaded', function () {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.min.js" integrity="sha384-Rx+T1VzGupg4BHQYs2gCW9It+akI2MM/mndMCy36UVfodzcJcF0GGLxZIzObiEfa" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 
+<script>
+(function() {
+    function normalizeNativeTitle(el) {
+        var raw = el.getAttribute('data-bs-original-title') || el.getAttribute('title') || '';
+        if (!raw) return;
+        var nativeTxt = raw.replace(/<br\s*\/?\s*>/gi, "\n").replace(/<[^>]+>/g, "");
+        el.setAttribute('title', nativeTxt);
+    }
+
+    function initTooltip(el) {
+        if (!el || !window.bootstrap || !bootstrap.Tooltip) return;
+        var inst = bootstrap.Tooltip.getInstance(el);
+        if (!inst) {
+            new bootstrap.Tooltip(el, { html: true, container: 'body', trigger: 'hover focus' });
+        }
+        normalizeNativeTitle(el);
+    }
+
+    function initAllTooltips() {
+        var nodes = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        nodes.forEach(function(el){ initTooltip(el); });
+    }
+
+    document.addEventListener('DOMContentLoaded', initAllTooltips);
+    window.addEventListener('load', initAllTooltips);
+
+    // lazy init při hoveru/focusu (spolehlivé i po dynamických změnách DOM)
+    document.addEventListener('mouseover', function(e) {
+        var el = e.target.closest('[data-bs-toggle="tooltip"]');
+        if (el) initTooltip(el);
+    }, true);
+    document.addEventListener('focusin', function(e) {
+        var el = e.target.closest('[data-bs-toggle="tooltip"]');
+        if (el) initTooltip(el);
+    });
+})();
+</script>
+
+
+
+<script>
+function posunMesicTop(delta) {
+    const form = document.getElementById('topFiltersForm');
+    const sel = document.getElementById('mesic');
+    if (!form || !sel) return;
+
+    const values = Array.from(sel.options).map(o => o.value);
+    if (!values.length) return;
+
+    let idx = values.indexOf(sel.value);
+    if (idx < 0) idx = 0;
+
+    // seznam je od nejnovějšího (index 0) po nejstarší
+    let nextIdx = idx - delta;
+    if (nextIdx < 0) nextIdx = 0;
+    if (nextIdx >= values.length) nextIdx = values.length - 1;
+
+    sel.value = values[nextIdx];
+
+    const hid = document.getElementById('hid_mesic');
+    if (hid) hid.value = sel.value;
+
+    form.submit();
+}
+</script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
