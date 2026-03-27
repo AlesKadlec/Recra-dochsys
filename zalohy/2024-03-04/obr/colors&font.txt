@@ -1,0 +1,11 @@
+Colors : 
+
+Main color : #C61F1D
+Added color : #ebecf2
+
+
+Font :
+
+Montserrat
+
+https://fonts.google.com/specimen/Montserrat

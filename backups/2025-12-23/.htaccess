@@ -1,0 +1,12 @@
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+<IfModule mod_php.c>
+    php_value session.use_only_cookies 1
+    php_value session.use_trans_sid 0
+
+	php_value session.save_handler files
+	php_value session.save_path "/data/8/7/876ec93e-9110-4ae6-9b9a-10a56bdea09b/recra.cz/sessions"
+
+</IfModule>

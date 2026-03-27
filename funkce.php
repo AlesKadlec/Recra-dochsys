@@ -4973,35 +4973,50 @@ function vyrob_kalendar($year, $month, $id_zam)
     </div>
 
     <script>
-    let aktualniDen = null;
+    window.__aktualniDen = window.__aktualniDen || null;
 
-    // EVENT DELEGATION: funguje pro všechny nové i staré hlavní modaly
-    document.addEventListener('click', function(e) {
-        const icon = e.target.closest('.poznamkaIcon');
-        if (!icon) return;
+    // bind jen jednou (modal se načítá přes AJAX opakovaně)
+    if (!window.__poznamkaEventsBound) {
+        window.__poznamkaEventsBound = true;
 
-        aktualniDen = icon.getAttribute('data-den');
-        const poznamka = icon.getAttribute('data-poznamka') || '';
+        document.addEventListener('click', function(e) {
+            const icon = e.target.closest('.poznamkaIcon');
+            if (!icon) return;
 
-        document.getElementById('poznamkaDen').textContent = aktualniDen + '.';
-        document.getElementById('poznamkaText').value = poznamka;
+            window.__aktualniDen = icon.getAttribute('data-den');
+            const poznamka = icon.getAttribute('data-poznamka') || '';
 
-        const modal = new bootstrap.Modal(document.getElementById('poznamkaModal'));
-        modal.show();
-    });
+            const denEl = document.getElementById('poznamkaDen');
+            const txtEl = document.getElementById('poznamkaText');
+            if (denEl) denEl.textContent = window.__aktualniDen + '.';
+            if (txtEl) txtEl.value = poznamka;
 
-    // uložení poznámky
-    document.getElementById('ulozPoznamkuBtn').addEventListener('click', () => {
-        const text = document.getElementById('poznamkaText').value;
-        document.getElementById('poznamkaInput' + aktualniDen).value = text;
+            const modalEl = document.getElementById('poznamkaModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+        });
 
-        const icon = document.querySelector(`.poznamkaIcon[data-den='${aktualniDen}']`);
-        if (icon) {
-            icon.setAttribute('data-poznamka', text);
-            icon.classList.toggle('text-warning', text.trim() !== '');
-        }
-    });
-    </script>
+        document.addEventListener('click', function(e) {
+            if (!e.target || e.target.id !== 'ulozPoznamkuBtn') return;
+
+            const txtEl = document.getElementById('poznamkaText');
+            const den = window.__aktualniDen;
+            if (!txtEl || !den) return;
+
+            const text = txtEl.value || '';
+            const inputEl = document.getElementById('poznamkaInput' + den);
+            if (inputEl) inputEl.value = text;
+
+            const icon = document.querySelector(`.poznamkaIcon[data-den='${den}']`);
+            if (icon) {
+                icon.setAttribute('data-poznamka', text);
+                icon.classList.toggle('text-warning', text.trim() !== '');
+            }
+        });
+    }
+</script>
     <?php
 }
 
@@ -7422,6 +7437,7 @@ function cron_batz_patecni_volno(): array
 }
 
 ?>
+
 
 
 
