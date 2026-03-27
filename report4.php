@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'set_
     header('Content-Type: application/json; charset=utf-8');
 
     // základní autorizace (stejná role logika jako zbytek stránky)
-    if (kontrola_prihlaseni() !== "OK" || !isset($_SESSION["typ"]) || !in_array($_SESSION["typ"], ["1","4","5"], true)) {
+    if (kontrola_prihlaseni() !== "OK" || !isset($_SESSION["typ"]) || !(in_array($_SESSION["typ"], ["1","4","5"], true) || ((string)$_SESSION["typ"] === "3" && (((int)($_SESSION["log_id"] ?? 0) === 39) || ((string)($_SESSION["log_name"] ?? "") === "Alliance-Leader"))))) {
         echo json_encode(['ok' => false, 'msg' => 'Neautorizováno.']);
         exit;
     }
@@ -130,7 +130,7 @@ if (kontrola_prihlaseni() == "OK")
 {
     if (isset($_SESSION["typ"]))
     {
-        if (($_SESSION["typ"] == "5") or ($_SESSION["typ"] == "1") or ($_SESSION["typ"] == "4"))
+        if (($_SESSION["typ"] == "5") or ($_SESSION["typ"] == "1") or ($_SESSION["typ"] == "4") or (($_SESSION["typ"] == "3") && ((((int)($_SESSION["log_id"] ?? 0)) === 39) || (((string)($_SESSION["log_name"] ?? "")) === "Alliance-Leader"))))
         {
 
             if(isset($_POST['mesic']))
@@ -168,16 +168,32 @@ if (kontrola_prihlaseni() == "OK")
 
             if(isset($_GET['typ']) && $_GET['typ'] == 'savechange')
             {
+                $isRestrictedCalendarUser = ((string)($_SESSION['typ'] ?? '') === '3' && ((((int)($_SESSION['log_id'] ?? 0)) === 39) || ((string)($_SESSION['log_name'] ?? '') === 'Alliance-Leader')));
+                $restrictedAllowedAbsences = ['DPN','OČR','ABS','LEK','DOV','NAR','PRO','NEPV','NAHV','SVA','VOL'];
                 // 1) Ukládání denních směn
                 for($i = 1; $i <= $_POST['max_den']; $i++) {
                     if(isset($_POST['toggle' . $i])) {
+                        $last_smena_den = $_POST['lasttoggle' . $i] ?? '';
+                        $smena_den = $_POST['toggle' . $i];
+                        $poznamka_changed = (($_POST['poznamka' . $i] ?? '') != ($_POST['lastpoznamka' . $i] ?? ''));
+                        if ($isRestrictedCalendarUser) {
+                            // Omezený uživatel nesmí měnit poznámky.
+                            $poznamka_changed = false;
+                        }
+
                         if (
-                            $_POST['toggle' . $i] != $_POST['lasttoggle' . $i] ||
-                            ($_POST['poznamka' . $i] ?? '') != ($_POST['lastpoznamka' . $i] ?? '')
+                            $smena_den != $last_smena_den ||
+                            $poznamka_changed
                         ) {
-                            $smena_den = $_POST['toggle' . $i];
-                            $datum = $_POST['vybrany_rok'] . "-" . $_POST['vybrany_mesic'] . "-" . $i;
-                            $poznamka_dne = $_POST['poznamka' . $i] ?? '';
+                            $datum = $_POST['vybrany_rok'] . '-' . $_POST['vybrany_mesic'] . '-' . $i;
+                            $poznamka_dne = $isRestrictedCalendarUser ? '' : ($_POST['poznamka' . $i] ?? '');
+                            if ($isRestrictedCalendarUser) {
+                                $canEditDay = !in_array((string)$last_smena_den, ['R','O','N'], true);
+                                $canSetValue = ($smena_den === '') || in_array($smena_den, $restrictedAllowedAbsences, true);
+                                if (!$canEditDay || !$canSetValue) {
+                                    continue;
+                                }
+                            }
 
                             // Smazání starých záznamů
                             $stmt = $conn->prepare("DELETE FROM nepritomnost WHERE zamestnanec=? AND datum=?");
@@ -190,7 +206,7 @@ if (kontrola_prihlaseni() == "OK")
                             $stmt->execute();
                             $stmt->close();
 
-                            $nepritomnosti_toggle = ['DPN','OČR','DOV','ABS','NAR','LEK','PRO','NEPV','NAHV','SVA'];
+                            $nepritomnosti_toggle = ['DPN','OČR','DOV','ABS','NAR','LEK','PRO','NEPV','NAHV','SVA','VOL'];
 
                             // Pokud je vybraná nepřítomnost
                             if(in_array($smena_den, $nepritomnosti_toggle))
@@ -201,7 +217,7 @@ if (kontrola_prihlaseni() == "OK")
                                 $stmt->close();
                             }
 
-                            // Pokud je vybraná běžná směna (R,O,N,VOL) nebo N/A
+                            // Pokud je vybraná běžná směna (R,O,N) nebo N/A
                             if($smena_den != '' && !in_array($smena_den, $nepritomnosti_toggle))
                             {
                                 $firma = get_info_from_zamestnanci_table($_POST['id_zam'], 'firma');
@@ -248,6 +264,7 @@ if (kontrola_prihlaseni() == "OK")
                 $currentYear = (int)$_POST['vybrany_rok'];
                 $prevWeek = null;
 
+                if (!$isRestrictedCalendarUser && isset($_POST['tydenni_smena']) && is_array($_POST['tydenni_smena'])) {
                 foreach ($_POST['tydenni_smena'] as $week => $smena_tydne) {
                     $trasa_tydne = $_POST['tydenni_trasa'][$week] ?? '';
                     $last_smena = $_POST['last_tydni_smena'][$week] ?? '';
@@ -276,6 +293,7 @@ if (kontrola_prihlaseni() == "OK")
                     }
 
                     $prevWeek = $week;
+                }
                 }
 
                 // ulozime zvoleny mesic, aby po ulozeni zustal zachovany
@@ -1186,6 +1204,9 @@ function posunMesicTop(delta) {
 </script>
 </body>
 </html>
+
+
+
 
 
 

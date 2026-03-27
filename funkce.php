@@ -166,7 +166,7 @@ function menu()
                                     </a>
                                 </li>
 
-                                <?php if (in_array($typ, ["1","5","7"], true)) : ?>
+                                <?php if (in_array($typ, ["1","5","7"], true) || ((string)$typ === "3" && (((int)($_SESSION["log_id"] ?? 0) === 39) || ((string)($_SESSION["log_name"] ?? "") === "Alliance-Leader")))) : ?>
                                     <li>
                                         <a class="dropdown-item" href="report4.php">
                                             <i class="bi bi-table me-2"></i>Report docházek
@@ -4784,6 +4784,8 @@ function vyrob_kalendar($year, $month, $id_zam)
                             $nepritomnosti_warning = ['DPN','OČR','ABS','LEK'];
                             $nepritomnosti_other = ['DOV','NAR','PRO','NEPV','NAHV','SVA', 'VOL'];
                             $tydenni_smeny = ['R','O','N', 'X'];
+                            $isRestrictedCalendarUser = ((string)($_SESSION['typ'] ?? '') === '3' && ((((int)($_SESSION['log_id'] ?? 0)) === 39) || ((string)($_SESSION['log_name'] ?? '') === 'Alliance-Leader')));
+                            $restrictedAllowedAbsences = array_merge($nepritomnosti_warning, $nepritomnosti_other);
 
                             $start_calendar = $first_day - ($startWeekday - 1) * 86400;
                             $last_day_of_month = strtotime(sprintf('%04d-%02d-%02d', $year, $month, $daysInMonth));
@@ -4830,7 +4832,8 @@ function vyrob_kalendar($year, $month, $id_zam)
                                     echo "<div>{$weekNumber}</div>";
 
                                     echo "<input type='hidden' name='last_tydni_smena[{$weekNumber}]' value='" . htmlspecialchars($vychozi_smena) . "'>";
-                                    echo "<select class='form-select form-select-sm mt-1 text-center' name='tydenni_smena[{$weekNumber}]'>";
+                                    $disabledTydenAttr = $isRestrictedCalendarUser ? " disabled" : "";
+                                    echo "<select class='form-select form-select-sm mt-1 text-center' name='tydenni_smena[{$weekNumber}]'{$disabledTydenAttr}>";
                                     echo "<option value=''>--</option>";
                                     foreach ($tydenni_smeny as $opt) {
                                         $selected = ($vychozi_smena === $opt) ? 'selected' : '';
@@ -4841,7 +4844,7 @@ function vyrob_kalendar($year, $month, $id_zam)
                                     // ===== TRASA =====
                                     echo "<input type='hidden' name='last_tydni_trasa[{$weekNumber}]' value='" . htmlspecialchars($vychozi_trasa) . "'>";
 
-                                    echo "<select class='form-select form-select-sm mt-1 text-center' name='tydenni_trasa[{$weekNumber}]'>";
+                                    echo "<select class='form-select form-select-sm mt-1 text-center' name='tydenni_trasa[{$weekNumber}]'{$disabledTydenAttr}>";
                                     echo "<option value=''>Vyber trasu</option>";
 
                                     $stmt2 = $conn->prepare("
@@ -4890,6 +4893,7 @@ function vyrob_kalendar($year, $month, $id_zam)
                                                     <label class="form-label fw-bold fs-3 <?php if($je_vikend) echo 'text-danger'; ?>">
                                                         <?php echo $dayDay; ?>
                                                     </label>
+                                                    <?php if (!$isRestrictedCalendarUser): ?>
                                                     <span role="button"
                                                         class="poznamkaIcon <?php echo trim($poznamka) !== '' ? 'text-warning' : 'text-muted'; ?>"
                                                         style="position:absolute; top:2px; right:2px; cursor:pointer;"
@@ -4897,19 +4901,22 @@ function vyrob_kalendar($year, $month, $id_zam)
                                                         data-poznamka="<?php echo htmlspecialchars($poznamka); ?>"
                                                         title="<?php echo trim($poznamka) !== '' ? htmlspecialchars($poznamka) : 'Přidej poznámku'; ?>"><i class="bi bi-pencil-square"></i>
                                                     </span>
+                                                    <?php endif; ?>
                                                 </div>
 
                                                 <input type="hidden" name="lasttoggle<?php echo $dayDay; ?>" value="<?php echo $smena; ?>">
                                                 <input type="hidden" name="poznamka<?php echo $dayDay; ?>" id="poznamkaInput<?php echo $dayDay; ?>" value="<?php echo htmlspecialchars($poznamka); ?>">
                                                 <input type="hidden" name="lastpoznamka<?php echo $dayDay; ?>" value="<?php echo htmlspecialchars($poznamka); ?>">
 
-                                                <select class="form-select text-center fw-bold fs-5" name="toggle<?php echo $dayDay; ?>" id="toggle<?php echo $dayDay; ?>">
+                                                <select class="form-select text-center fw-bold fs-5" name="toggle<?php echo $dayDay; ?>" id="toggle<?php echo $dayDay; ?>" <?php echo ($isRestrictedCalendarUser && in_array((string)$smena, ['R','O','N'], true)) ? 'disabled' : ''; ?>>
                                                     <?php
                                                     $selected = ($smena === '') ? 'selected' : '';
                                                     echo "<option value='' class='bg-danger-subtle' $selected>N/A</option>";
-                                                    foreach ($smeny as $opt) {
-                                                        $sel = ($smena === $opt) ? 'selected' : '';
-                                                        echo "<option value='$opt' class='bg-success-subtle' $sel>$opt</option>";
+                                                    if (!$isRestrictedCalendarUser) {
+                                                        foreach ($smeny as $opt) {
+                                                            $sel = ($smena === $opt) ? 'selected' : '';
+                                                            echo "<option value='$opt' class='bg-success-subtle' $sel>$opt</option>";
+                                                        }
                                                     }
                                                     foreach ($nepritomnosti_warning as $opt) {
                                                         $sel = ($smena === $opt) ? 'selected' : '';
@@ -7437,6 +7444,10 @@ function cron_batz_patecni_volno(): array
 }
 
 ?>
+
+
+
+
 
 
 
