@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // Zahrnutí souboru s údaji o připojení
 include('db.php');
 include ('funkce.php');
@@ -40,23 +40,33 @@ if (kontrola_prihlaseni() == "OK")
             // Zpracování filtru dne
             $datum = !empty($_POST["datepicker"]) ? date_format(date_create($_POST["datepicker"]), 'Y-m-d') : null;
 
-            // Zpracování filtru měsíce (YYYY-mm)
-            $mesic = !empty($_POST["mesic"]) ? $_POST["mesic"] : null;
+            // Zpracování filtru měsíce (Safari fallback: YYYY-MM i YYYY-MM-DD)
+            $mesicRaw = isset($_POST['mesic']) ? trim((string)$_POST['mesic']) : '';
+            $mesic = null;
+            if ($mesicRaw !== '') {
+                if (preg_match('/^\d{4}-\d{2}$/', $mesicRaw)) {
+                    $mesic = $mesicRaw;
+                } elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $mesicRaw)) {
+                    $mesic = substr($mesicRaw, 0, 7);
+                }
+            }
 
             // Směna
-            $smena = $_POST["smena"];
-            $cilova_filtr = isset($_POST["cilova_filtr"]) ? trim((string)$_POST["cilova_filtr"]) : "ALL";
+            $smena = $_POST['smena'];
+            $cilova_filtr = isset($_POST['cilova_filtr']) ? trim((string)$_POST['cilova_filtr']) : 'ALL';
 
             // Vytvoření SQL podmínek
             $where = [];
 
-            // Pokud je vybrán měsíc → filtrujeme celý měsíc
+            // Pokud je vybrán měsíc -> filtrujeme celý měsíc
             if ($mesic) {
-                // měsíc = "2025-10"
-                $start = $mesic . "-01";
-                $end = $mesic . "-31";    // stačí pro MySQL i když měsíc nemá 31 dní
-                $where[] = "datum BETWEEN '$start' AND '$end'";
-            } 
+                $dtStart = DateTime::createFromFormat('Y-m-d', $mesic . '-01');
+                if ($dtStart) {
+                    $start = $dtStart->format('Y-m-01');
+                    $end = $dtStart->format('Y-m-t');
+                    $where[] = "datum BETWEEN '$start' AND '$end'";
+                }
+            }
             // Jinak filtrujeme konkrétní den
             elseif ($datum) {
                 $where[] = "datum = '$datum'";
@@ -703,4 +713,6 @@ $(document).ready(function() {
 
 
 <?php modal_vlozeni_dochazky();?>
+
+
 

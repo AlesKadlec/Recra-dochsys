@@ -29,4 +29,8 @@ cron_plan_smen_firma_tatra();
 // BATZ - THERMA v pondeli rano v 1h, nastavit na pátek smenu = 'VOL' u zaměstnanců, co mají daný týden N směnu;
 cron_batz_patecni_volno();
 
+// Zpětná oprava trasy (bus) v docházce podle plan_smen.
+// Primárně dohledá trasu v plan_smen (rok, týden, jmeno=zamestnanec).
+oprav_dochazka_trasa_z_plan_smen();
+
 ?>

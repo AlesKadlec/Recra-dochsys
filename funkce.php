@@ -6901,7 +6901,7 @@ function cron_vloz_volno_pro_X_vcera(): void
     echo "CRON VOLNO X | datum=$datum | ISO=$isoWeek/$isoYear\n";
 
     $sql = "
-        SELECT z.id
+        SELECT z.id, COALESCE(p.trasa, 0) AS trasa
         FROM plan_smen p
         JOIN zamestnanci z ON z.id = p.jmeno
         WHERE p.rok = ?
@@ -6938,8 +6938,10 @@ function cron_vloz_volno_pro_X_vcera(): void
         $zamId = (int)$row['id'];
 
         $firma = get_info_from_zamestnanci_table($zamId, 'firma');
-        $zastavka = get_info_from_zamestnanci_table($zamId, 'nastup');
-        $auto = get_bus_from_zastavky($zastavka);
+        $zastavka = (int)get_info_from_zamestnanci_table($zamId, 'nastup');
+        $auto = (int)($row['trasa'] ?? 0); // primárně z plan_smen.trasa
+        if ($auto <= 0 && $zastavka > 0) {$auto = (int)get_bus_from_zastavky($zastavka); } // fallback
+        if ($zastavka <= 0) { $zastavka = 0; }
 
         // VOL nemá reálný čas → bezpečně nastavíme 00:00
         $cas = '00:00:00';
@@ -7347,7 +7349,7 @@ function cron_batz_patecni_volno(): array
 
         // ===== 1) zaměstnanci BATZ - THERMA s noční směnou =====
         $sqlEmployees = "
-            SELECT z.id, z.firma
+            SELECT z.id, z.firma, COALESCE(ps.trasa, 0) AS trasa
             FROM zamestnanci z
             INNER JOIN firmy f ON f.id = z.firma
             INNER JOIN plan_smen ps
@@ -7408,8 +7410,14 @@ function cron_batz_patecni_volno(): array
             // hodnoty
             $cas          = '01:00:00';
             $smena        = 'VOL';
-            $bus          = 0;
-            $zastavka     = 0;
+            $zastavka     = (int)get_info_from_zamestnanci_table($employeeId, 'nastup');
+            $bus          = (int)($emp['trasa'] ?? 0); // primárně z plan_smen.trasa
+            if ($bus <= 0 && $zastavka > 0) {
+                $bus = (int)get_bus_from_zastavky($zastavka); // fallback
+            }
+            if ($zastavka <= 0) {
+                $zastavka = 0;
+            }
             $cron         = 1;
             $nepritomnost = '';
             $poznamka     = 'Cron BATZ - páteční volno po noční směně';
@@ -7443,12 +7451,125 @@ function cron_batz_patecni_volno(): array
     }
 }
 
+/**
+ * Zpětná oprava trasy (bus) v docházce podle plan_smen.
+ *
+ * Primárně dohledá trasu v plan_smen (rok, týden, jmeno=zamestnanec).
+ * Fallback použije mapování dle zastávky (get_bus_from_zastavky).
+ *
+ * @return array{ok:bool,checked:int,updated:int,no_plan:int,no_route:int,errors:int,error?:string}
+ */
+function oprav_dochazka_trasa_z_plan_smen(): array
+{
+    global $conn;
+
+    if (!isset($conn) || !($conn instanceof mysqli)) {
+        return ['ok' => false, 'checked' => 0, 'updated' => 0, 'no_plan' => 0, 'no_route' => 0, 'errors' => 1, 'error' => 'Chyba: $conn není mysqli'];
+    }
+
+    $checked = 0;
+    $updated = 0;
+    $noPlan  = 0;
+    $noRoute = 0;
+    $errors  = 0;
+
+    try {
+        $tz = new DateTimeZone('Europe/Prague');
+
+
+        $sqlRows = "
+            SELECT d.id, d.zamestnanec, d.datum, d.smena, d.zastavka
+            FROM dochazka d
+            WHERE d.bus = 0
+            ORDER BY d.datum ASC, d.id ASC
+        ";
+
+        $stmtRows = $conn->prepare($sqlRows);
+        if (!$stmtRows) {
+            throw new RuntimeException('Prepare rows failed: ' . $conn->error);
+        }
+
+
+        $stmtRows->execute();
+        $resRows = $stmtRows->get_result();
+
+        $stmtPlan = $conn->prepare("SELECT trasa FROM plan_smen WHERE rok = ? AND tyden = ? AND jmeno = ? LIMIT 1");
+        $stmtUpd  = $conn->prepare("UPDATE dochazka SET bus = ?, zastavka = ? WHERE id = ?");
+
+        if (!$stmtPlan || !$stmtUpd) {
+            throw new RuntimeException('Prepare helpers failed: ' . $conn->error);
+        }
+
+        while ($row = $resRows->fetch_assoc()) {
+            $checked++;
+
+            $id         = (int)$row['id'];
+            $zamId      = (int)$row['zamestnanec'];
+            $datum      = (string)$row['datum'];
+            $zastavka   = (int)$row['zastavka'];
+
+            try {
+                $dt = new DateTimeImmutable($datum, $tz);
+            } catch (Throwable $e) {
+                $errors++;
+                continue;
+            }
+
+            $rok   = (int)$dt->format('o');
+            $tyden = (int)$dt->format('W');
+
+            $stmtPlan->bind_param('iii', $rok, $tyden, $zamId);
+            $stmtPlan->execute();
+            $resPlan = $stmtPlan->get_result();
+            $planRow = $resPlan ? $resPlan->fetch_assoc() : null;
+
+            if (!$planRow) {
+                $noPlan++;
+                continue;
+            }
+
+            $bus = (int)($planRow['trasa'] ?? 0);
+            if ($bus <= 0) {
+                $noRoute++;
+                continue;
+            }
+
+            if ($zastavka <= 0) {
+                $zastavka = (int)get_info_from_zamestnanci_table($zamId, 'nastup');
+            }
+            if ($zastavka <= 0) {
+                $zastavka = 0;
+            }
+
+            $stmtUpd->bind_param('iii', $bus, $zastavka, $id);
+            if ($stmtUpd->execute()) {
+                $updated++;
+            } else {
+                $errors++;
+            }
+        }
+
+        return [
+            'ok'       => true,
+            'checked'  => $checked,
+            'updated'  => $updated,
+            'no_plan'  => $noPlan,
+            'no_route' => $noRoute,
+            'errors'   => $errors,
+        ];
+    } catch (Throwable $e) {
+        return [
+            'ok'       => false,
+            'checked'  => $checked,
+            'updated'  => $updated,
+            'no_plan'  => $noPlan,
+            'no_route' => $noRoute,
+            'errors'   => $errors + 1,
+            'error'    => $e->getMessage(),
+        ];
+    }
+}
 ?>
-
-
-
-
-
 
 
 
