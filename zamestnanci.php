@@ -462,7 +462,7 @@ if (kontrola_prihlaseni() == "OK")
 
         //echo $sql;
 
-        $editRole = in_array($_SESSION['typ'], [1,4,5], true);
+        $editRole = in_array((string)($_SESSION['typ'] ?? ''), ['1','4','5'], true);
 
         // Hlavička tabulky podle $pomer
         if (in_array($pomer, [0,33,44,55], true)) {
@@ -847,7 +847,7 @@ if (kontrola_prihlaseni() == "OK")
                     ORDER BY prijmeni, zamestnanci.smena";
         }
 
-        //echo $sql;
+        echo $sql;
 
         if (!($vysl = mysqli_query($conn, $sql))) {
             die("Nelze provést dotaz");
