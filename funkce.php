@@ -6,74 +6,56 @@ require_once 'init.php';
 require_once 'db.php';
 //require_once __DIR__ . '/init.php';
 
-if (isset($_GET['functionName'])) {
-    // Získat název funkce a ID z GET požadavku
-    $functionName = $_GET['functionName'];
-    $id = $_GET['ID'];
-
-    // Zkontrolovat, zda existuje požadovaná funkce
-    if (function_exists($functionName)) {
-        // Spustit požadovanou funkci s předaným ID
-        $result = call_user_func($functionName, $id);
-        echo $result; // Vrátit výsledek jako odpověď na AJAX požadavek
-    } else {
-        // Pokud požadovaná funkce neexistuje, vrátit chybovou zprávu
-        echo "Požadovaná funkce neexistuje.";
+function is_allowed_ajax_function(string $functionName): bool
+{
+    if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $functionName)) {
+        return false;
     }
-} 
-else 
-{
-    // Pokud nebyla předána funkce a ID, vrátit chybovou zprávu
-    //echo "Chybí požadovaná data 1.";
-}
 
-if (isset($_GET['functionName2'])) {
-  // Získat název funkce a ID z GET požadavku
-  //$functionName = $_GET['functionName2'];
-  $id = $_GET['ID'];
-  $id2 = $_GET['ID2'];
-
-  //echo $id;
-  //echo $functionName;
-
-  // Zkontrolovat, zda existuje požadovaná funkce
-  if (function_exists($_GET['functionName2'])) {
-      // Spustit požadovanou funkci s předaným ID
-      $result = call_user_func($_GET['functionName2'], $id, $id2);
-      echo $result; // Vrátit výsledek jako odpověď na AJAX požadavek
-  } else {
-      // Pokud požadovaná funkce neexistuje, vrátit chybovou zprávu
-      //echo "Požadovaná funkce neexistuje.";
-  }
-} 
-else 
-{
-  // Pokud nebyla předána funkce a ID, vrátit chybovou zprávu
-  //echo "Chybí požadovaná data 1.";
-}
-
-if (isset($_GET['functionName3'])) {
-    // Získat název funkce a ID z GET požadavku
-    $functionName = $_GET['functionName3'];
-    $id = $_GET['ID'];
-    $id2 = $_GET['ID2'];
-    $id3 = $_GET['ID3'];
-
-    // Zkontrolovat, zda existuje požadovaná funkce
-    if (function_exists($functionName)) {
-        // Spustit požadovanou funkci s předaným ID
-        $result = call_user_func($functionName, $id, $id2, $id3);
-        echo $result; // Vrátit výsledek jako odpověď na AJAX požadavek
-    } else {
-        // Pokud požadovaná funkce neexistuje, vrátit chybovou zprávu
-        echo "Požadovaná funkce neexistuje.";
+    if (!function_exists($functionName)) {
+        return false;
     }
-} 
-else 
-{
-    // Pokud nebyla předána funkce a ID, vrátit chybovou zprávu
-    //echo "Chybí požadovaná data 2.";
+
+    try {
+        $reflection = new ReflectionFunction($functionName);
+    } catch (ReflectionException $e) {
+        return false;
+    }
+
+    $definedInFile = $reflection->getFileName();
+    if ($definedInFile === false) {
+        return false;
+    }
+
+    // Povolit jen funkce definované v tomto souboru.
+    return realpath($definedInFile) === realpath(__FILE__);
 }
+
+function dispatch_ajax_function(string $queryKey, array $argumentKeys, bool $silentOnInvalid = false): void
+{
+    if (!isset($_GET[$queryKey])) {
+        return;
+    }
+
+    $functionName = (string) $_GET[$queryKey];
+    if (!is_allowed_ajax_function($functionName)) {
+        if (!$silentOnInvalid) {
+            echo "Požadovaná funkce neexistuje.";
+        }
+        return;
+    }
+
+    $arguments = [];
+    foreach ($argumentKeys as $argumentKey) {
+        $arguments[] = $_GET[$argumentKey] ?? null;
+    }
+
+    echo call_user_func_array($functionName, $arguments);
+}
+
+dispatch_ajax_function('functionName', ['ID']);
+dispatch_ajax_function('functionName2', ['ID', 'ID2'], true);
+dispatch_ajax_function('functionName3', ['ID', 'ID2', 'ID3']);
 
 function kontrola_prihlaseni()
 {
@@ -87,6 +69,9 @@ function kontrola_prihlaseni()
     }
 }
 
+/**
+ * @param int|string $id
+ */
 function get_info_bus($id)
 {
     global $conn;
@@ -313,6 +298,11 @@ function menu()
     <?php
 }
 
+/**
+ * @param string $firma
+ * @param array|bool|float|int|string|null $uzivatel
+ * @param string $autobus
+ */
 function vytvor_tlacitka_pro_smeny($firma, $uzivatel, $autobus)
 {
     if ($_SESSION["autobus"] == "") { ?>
@@ -341,6 +331,9 @@ function vytvor_tlacitka_pro_smeny($firma, $uzivatel, $autobus)
 }
 
 
+/**
+ * @param int $firma_id
+ */
 function get_firma_from_id($firma_id)
 {
     global $conn;
@@ -363,6 +356,9 @@ function get_firma_from_id($firma_id)
 
 }
 
+/**
+ * @param int $firma_id
+ */
 function get_objednavka($firma_id)
 {
     global $conn;
@@ -385,6 +381,9 @@ function get_objednavka($firma_id)
 
 }
 
+/**
+ * @param int $bus_id
+ */
 function get_spz_from_id($bus_id)
 {
     global $conn;
@@ -407,6 +406,11 @@ function get_spz_from_id($bus_id)
 
 }
 
+/**
+ * @param string $firma
+ * @param string $smena
+ * @param string $zastavka
+ */
 function zjisti_pocet_nastupujicich($firma, $smena, $zastavka)
 {
     global $conn;
@@ -462,6 +466,11 @@ function zjisti_pocet_nastupujicich($firma, $smena, $zastavka)
     return $pocet;
 }
 
+/**
+ * @param string $firma
+ * @param string $smena
+ * @param string $zastavka
+ */
 function zjisti_pocet_autobusu($firma, $smena, $zastavka)
 {
     global $conn;
@@ -509,6 +518,10 @@ function zjisti_pocet_autobusu($firma, $smena, $zastavka)
     return $pocet;
 }
 
+/**
+ * @param string $rfid
+ * @param string $firma
+ */
 function get_name_from_rfid($rfid, $firma)
 {
     global $conn;
@@ -552,6 +565,10 @@ function get_name_from_rfid($rfid, $firma)
 }
 
 
+/**
+ * @param string $personal_number
+ * @param string $firma
+ */
 function get_name_from_personal_number($personal_number,$firma)
 {
     global $conn;
@@ -575,6 +592,9 @@ function get_name_from_personal_number($personal_number,$firma)
 
 }
 
+/**
+ * @param string $personal_number
+ */
 function get_name_from_personal_number2($personal_number)
 {
     global $conn;
@@ -598,6 +618,9 @@ function get_name_from_personal_number2($personal_number)
 
 }
 
+/**
+ * @param string $personal_number
+ */
 function get_only_name_from_personal_number($personal_number)
 {
     global $conn;
@@ -621,6 +644,9 @@ function get_only_name_from_personal_number($personal_number)
 
 }
 
+/**
+ * @param int $id_zam
+ */
 function get_name_from_id_zam($id_zam)
 {
     global $conn;
@@ -644,6 +670,9 @@ function get_name_from_id_zam($id_zam)
 
 }
 
+/**
+ * @param int $id_zam
+ */
 function get_shift_from_id_zam($id_zam)
 {
     global $conn;
@@ -667,6 +696,9 @@ function get_shift_from_id_zam($id_zam)
 
 }
 
+/**
+ * @param int $id_zastavky
+ */
 function get_zastavka_from_id($id_zastavky)
 {
     global $conn;
@@ -723,6 +755,9 @@ function get_zastavka_from_id($id_zastavky)
   
 }
 
+/**
+ * @param int $id_zastavky
+ */
 function get_zastavka_from_id2($id_zastavky)
 {
     global $conn;
@@ -746,6 +781,11 @@ function get_zastavka_from_id2($id_zastavky)
   
 }
 
+/**
+ * @param int $id_zastavky
+ * @param string $auto
+ * @param string $smena
+ */
 function get_zastavka_from_id3($id_zastavky, $auto, $smena = "R")
 {
     global $conn;
@@ -785,6 +825,9 @@ function get_zastavka_from_id3($id_zastavky, $auto, $smena = "R")
 }
 
 
+/**
+ * @param int $id_zastavky
+ */
 function get_bus_from_zastavky($id_zastavky)
 {
     global $conn;
@@ -808,6 +851,15 @@ function get_bus_from_zastavky($id_zastavky)
   
 }
 
+/**
+ * @param int $id_emp
+ * @param array|bool|float|int|string|null $bus
+ * @param string $zastavka
+ * @param string $firma
+ * @param string $smena
+ * @param int $cron
+ * @param string $nepritomnost
+ */
 function insert_attandance($id_emp,$bus,$zastavka,$firma,$smena,$cron,$nepritomnost) 
 {
     global $conn;
@@ -881,6 +933,18 @@ function insert_attandance($id_emp,$bus,$zastavka,$firma,$smena,$cron,$nepritomn
     mysqli_stmt_close($stmt2);
 }
 
+/**
+ * @param int $id_emp
+ * @param array|bool|float|int|string|null $bus
+ * @param string $zastavka
+ * @param string $firma
+ * @param string $smena
+ * @param string $datum
+ * @param string $cas
+ * @param string $nepritomnost
+ * @param string $poznamka
+ * @param int $cron
+ */
 function insert_attandance_manually($id_emp, $bus, $zastavka, $firma, $smena, $datum, $cas, $nepritomnost, $poznamka, $cron = 2)
 {
     global $conn;
@@ -958,6 +1022,17 @@ function insert_attandance_manually($id_emp, $bus, $zastavka, $firma, $smena, $d
 }
 
 
+/**
+ * @param int $id_emp
+ * @param array|bool|float|int|string|null $bus
+ * @param string $zastavka
+ * @param string $firma
+ * @param string $smena
+ * @param string $datum
+ * @param string $cas
+ * @param string $nepritomnost
+ * @param string $poznamka
+ */
 function insert_attandance_manually_aaa($id_emp,$bus,$zastavka,$firma,$smena,$datum,$cas,$nepritomnost,$poznamka) 
 {
   
@@ -999,6 +1074,12 @@ function insert_attandance_manually_aaa($id_emp,$bus,$zastavka,$firma,$smena,$da
     }
 }
 
+/**
+ * @param string $firma
+ * @param string $nastup
+ * @param string $smena
+ * @param array|bool|float|int|string|null $bus
+ */
 function vyrob_modal_k_nastupnimu_mistu($firma,$nastup,$smena,$bus)
 { ?>
 
@@ -1058,6 +1139,10 @@ function vyrob_modal_k_nastupnimu_mistu($firma,$nastup,$smena,$bus)
                     AND (zamestnanci.nepritomnost = '' OR zamestnanci.nepritomnost IS NULL)
                     AND DATE(zamestnanci.vstup) <= CURDATE()
                     AND (zamestnanci.vystup = '0000-00-00' OR DATE(zamestnanci.vystup) >= CURDATE())";
+
+                //echo $sql;
+                //echo "<br>";
+                //echo $smena . "*" . $rok . "*" . $tyden . "*" . $nastup . "*" . $firma;
 
                 // Připravený statement pro bezpečné parametry
                 $stmt = $conn->prepare($sql);
@@ -1127,6 +1212,11 @@ function vyrob_modal_k_nastupnimu_mistu($firma,$nastup,$smena,$bus)
   <?php
 }
 
+/**
+ * @param int $id_cloveka
+ * @param string $smena
+ * @param string $zastavka
+ */
 function zjisti_cas_nastupu($id_cloveka,$smena,$zastavka)
 {
     global $conn;
@@ -1152,6 +1242,9 @@ function zjisti_cas_nastupu($id_cloveka,$smena,$zastavka)
 
 }
 
+/**
+ * @param string $firma
+ */
 function zjisti_pocet_zamestnancu_ve_firme($firma)
 {
     global $conn;
@@ -1180,6 +1273,9 @@ function zjisti_pocet_zamestnancu_ve_firme($firma)
     return $pocet;
 }
 
+/**
+ * @param string $firma
+ */
 function zjisti_pocet_zamestnancu_ve_firme_objednavka($firma)
 {
     global $conn;
@@ -1204,6 +1300,9 @@ function zjisti_pocet_zamestnancu_ve_firme_objednavka($firma)
     return $pocet;
 }
 
+/**
+ * @param string $firma
+ */
 function zjisti_preklopeni_smen($firma)
 {
     global $conn;
@@ -1249,6 +1348,11 @@ function zjisti_preklopeni_smen($firma)
 
 }
 
+/**
+ * @param string $string
+ * @param int $length
+ * @param string $splitchar
+ */
 function wrapMailMessage($string, $length=980, $splitchar="\n ") {
 if (strlen($string) <= $length) {
     $output = $string; //do nothing
@@ -1259,6 +1363,10 @@ return $output;
 
 }
 
+/**
+ * @param string $os_cislo
+ * @param string $smena
+ */
 function zmena_smeny($os_cislo,$smena) 
 {
   
@@ -1317,6 +1425,10 @@ function zmena_smeny($os_cislo,$smena)
    
 }
 
+/**
+ * @param string $os_cislo
+ * @param string $smena
+ */
 function zmena_smeny2($os_cislo,$smena) 
 {
   
@@ -1377,6 +1489,10 @@ function zmena_smeny2($os_cislo,$smena)
    
 }
 
+/**
+ * @param string $firma
+ * @param string $datum
+ */
 function pocet_zam_firma_den($firma,$datum)
 {
     global $conn;
@@ -1400,6 +1516,10 @@ function pocet_zam_firma_den($firma,$datum)
 
 }
 
+/**
+ * @param string $cilova
+ * @param string $datum
+ */
 function pocet_zam_cilovou_stanici_den($cilova, $datum)
 {
     global $conn;
@@ -1439,6 +1559,10 @@ function pocet_zam_cilovou_stanici_den($cilova, $datum)
     return $pocet;
 }
 
+/**
+ * @param string $datum
+ * @param string $nepritomnost
+ */
 function pocet_zam_nepritomnych_za_den($datum,$nepritomnost)
 {
     global $conn;
@@ -1462,6 +1586,11 @@ function pocet_zam_nepritomnych_za_den($datum,$nepritomnost)
 
 }
 
+/**
+ * @param string $datum
+ * @param string $nepritomnost
+ * @param string $firma
+ */
 function pocet_zam_nepritomnych_za_den_firma($datum, $nepritomnost, $firma)
 {
     global $conn;
@@ -1499,6 +1628,11 @@ function pocet_zam_nepritomnych_za_den_firma($datum, $nepritomnost, $firma)
     return $pocet;
 }
 
+/**
+ * @param string $firma
+ * @param string $mesic_start
+ * @param string $mesic_end
+ */
 function nacti_nepritomnosti_mesic_sumy($firma, $mesic_start, $mesic_end) 
 {
 
@@ -1522,7 +1656,11 @@ function nacti_nepritomnosti_mesic_sumy($firma, $mesic_start, $mesic_end)
     $stmt->bind_result($datum, $nepritomnost, $pocet);
 
     while ($stmt->fetch()) {
-        $data[$nepritomnost][$datum] = $pocet;
+        if ($nepritomnost === null || $datum === null) {
+            continue;
+        }
+
+        $data[(string)$nepritomnost][(string)$datum] = (int)$pocet;
     }
 
     $stmt->close();
@@ -1530,6 +1668,9 @@ function nacti_nepritomnosti_mesic_sumy($firma, $mesic_start, $mesic_end)
     return $data;
 }
 
+/**
+ * @param string $mesic
+ */
 function get_castka_fakturace($mesic)
 {
     global $conn;
@@ -1553,6 +1694,9 @@ function get_castka_fakturace($mesic)
 
 }
 
+/**
+ * @param string $zastavka
+ */
 function get_car_from_zastavka($zastavka)
 {
     global $conn;
@@ -1576,6 +1720,10 @@ function get_car_from_zastavka($zastavka)
 
 }
 
+/**
+ * @param string $mesic
+ * @param float|int|string $castka
+ */
 function update_castka_fakturace($mesic,$castka) 
 {
   
@@ -1599,6 +1747,10 @@ function update_castka_fakturace($mesic,$castka)
  
 }
 
+/**
+ * @param string $mesic
+ * @param float|int|string $castka
+ */
 function insert_castka_fakturace($mesic,$castka) 
 {
   
@@ -1622,6 +1774,9 @@ function insert_castka_fakturace($mesic,$castka)
  
 }
 
+/**
+ * @param int $id_emp
+ */
 function zjisti_dochazku_agenturnika($id_emp) {
 
     global $conn;
@@ -1670,6 +1825,9 @@ return $pocet;
 
 }
 
+/**
+ * @param string $parametr
+ */
 function get_firmy_from_id_IN($parametr) {
 
     global $conn;
@@ -2101,7 +2259,17 @@ function cron_vkladani_nepritomnosti()
                     if ($hodnota == '')
                     {
                         //vlozim smenu i s nepritomnosti do tabulky dochazka
-                        insert_attandance_manually($radek['zamestnanec'],$auto,$zastavka,$firma,$smena,$dneska,$cas_nastupu,$radek['nepritomnost']);
+                        insert_attandance_manually(
+                            $radek['zamestnanec'],
+                            $auto,
+                            $zastavka,
+                            $firma,
+                            $smena,
+                            $dneska,
+                            $cas_nastupu,
+                            (string)($radek['nepritomnost'] ?? ''),
+                            'Cron - vlozeno z tabulky nepritomnost'
+                        );
 
                         //radek o nepritomnosti v tabulce nepritomnost zmenim na 1
                         update_nepritomnost_radek($radek['id'],$radek['zamestnanec'],$radek['nepritomnost'],$dneska);
@@ -2128,6 +2296,9 @@ function cron_vkladani_nepritomnosti()
     }
 }
 
+/**
+ * @param string $firma
+ */
 function hromadna_zmena_smen($firma) {
 
     global $conn;
@@ -2148,6 +2319,9 @@ function hromadna_zmena_smen($firma) {
     
 }
 
+/**
+ * @param int $id_zam
+ */
 function update_smena_from_smena2($id_zam) 
 {
     global $conn;
@@ -2170,6 +2344,9 @@ function update_smena_from_smena2($id_zam)
 
 }
 
+/**
+ * @param string $firma
+ */
 function zmena_smen_provedena($firma) 
 {
     global $conn;
@@ -2185,6 +2362,9 @@ function zmena_smen_provedena($firma)
 
 }
 
+/**
+ * @param string $value
+ */
 function je_datum($value)
 {
   if (!$value) {
@@ -2285,6 +2465,10 @@ function modal_vlozeni_dochazky()
     <?php
 }
 
+/**
+ * @param int $id_zam
+ * @param string $sloupec
+ */
 function get_info_from_zamestnanci_table($id_zam,$sloupec) {
 
     global $conn;
@@ -2309,6 +2493,10 @@ function get_info_from_zamestnanci_table($id_zam,$sloupec) {
     
 }
 
+/**
+ * @param int $id_zastavky
+ * @param string $smena
+ */
 function get_time_nastupu($id_zastavky, $smena)
 {
     global $conn;
@@ -2348,6 +2536,9 @@ function get_time_nastupu($id_zastavky, $smena)
     return $hodnota;
 }
 
+/**
+ * @param int $id_radku
+ */
 function edit_dochazky($id_radku)
 {  
     
@@ -2432,6 +2623,10 @@ function edit_dochazky($id_radku)
 }
 
 
+/**
+ * @param array|bool|float|int|string|null $zamestnanec
+ * @param string $datum
+ */
 function dochazka_zamestnanec_den($zamestnanec, $datum)
 {
     global $conn;
@@ -2469,6 +2664,11 @@ function dochazka_zamestnanec_den($zamestnanec, $datum)
     return $hodnota;
 }
 
+/**
+ * @param array<int,int|string> $zamestnanci
+ * @param string $start_day
+ * @param int $dnu
+ */
 function nacti_dochazku_mesic($zamestnanci, $start_day, $dnu)
 {
     global $conn;
@@ -2515,6 +2715,11 @@ function nacti_dochazku_mesic($zamestnanci, $start_day, $dnu)
     return $dochazka;
 }
 
+/**
+ * @param array<int,int|string> $zamestnanci
+ * @param string $start_day
+ * @param int $dnu
+ */
 function nacti_nepritomnosti_mesic($zamestnanci, $start_day, $dnu)
 {
     global $conn;
@@ -2566,6 +2771,9 @@ function nacti_nepritomnosti_mesic($zamestnanci, $start_day, $dnu)
     return $nepritomnosti;
 }
 
+/**
+ * @param int|string $id
+ */
 function novy_nabor($id = '')
 {
     global $conn;
@@ -2600,6 +2808,11 @@ function novy_nabor($id = '')
     $title = $isEdit ? "Editace uchazeče o zaměstnání" : "Nový nábor uchazeče o zaměstnání";
     $subtitle = $isEdit ? "Úprava údajů o uchazeči" : "Založení nového uchazeče";
 
+/**
+ * @param array<string,mixed> $row
+ * @param string|int $key
+ * @param array|bool|float|int|string|null $default
+ */
     function nv($row, $key, $default = '')
     {
         return htmlspecialchars($row[$key] ?? $default, ENT_QUOTES, 'UTF-8');
@@ -2923,8 +3136,14 @@ function novy_nabor($id = '')
     <?php
 }
 
+/**
+ * @param int|string $id
+ * @param int|string $id2
+ */
 function nove_auto($id = '', $id2 = '')
 {    
+    $polehodnot = array();
+    $autoData = array();
 
     if ($id <> '')
     {
@@ -2937,8 +3156,6 @@ function nove_auto($id = '', $id2 = '')
         die("Nelze provést dotaz</body></html>");
         }            
     
-        $polehodnot = array();
-
         while ($radek = mysqli_fetch_array($vysledek, MYSQLI_ASSOC)) {
             $polehodnot[] = $radek;
         }
@@ -2951,6 +3168,8 @@ function nove_auto($id = '', $id2 = '')
         <form name="nabor_new" method="POST" action="vozovypark.php?typ=updateauto">
         
         <?php
+
+        $autoData = $polehodnot[0] ?? array();
     }
     else
     {   ?>
@@ -2972,7 +3191,7 @@ function nove_auto($id = '', $id2 = '')
     }
     else
     {   ?>
-            <div class="modal fade" id="ModalAutoInfo<?php echo $polehodnot[0]['id'];?>" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal fade" id="ModalAutoInfo<?php echo $autoData['id'] ?? '';?>" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
         <?php
     }
     ?>
@@ -2991,17 +3210,17 @@ function nove_auto($id = '', $id2 = '')
                 <div class="row">
                     <div class="col col-md-12 mt-2 text-start">
                         <label class="form-label">Trasa</label>
-                        <input type="text" class="form-control bg-primary-subtle" id="spz" name="spz" value="<?php echo ($id == '') ? "" : $polehodnot[0]['spz'];?>" required>
+                        <input type="text" class="form-control bg-primary-subtle" id="spz" name="spz" value="<?php echo ($id == '') ? "" : ($autoData['spz'] ?? '');?>" required>
                     </div>
                     
                     <div class="col col-md-12 mt-2 text-start">
                         <label class="form-label">Označení auta / krátký popis</label>  
-                        <input type="text" class="form-control bg-primary-subtle" id="oznaceni" name="oznaceni" value="<?php echo ($id == '') ? "" : $polehodnot[0]['oznaceni'];?>" required>
+                        <input type="text" class="form-control bg-primary-subtle" id="oznaceni" name="oznaceni" value="<?php echo ($id == '') ? "" : ($autoData['oznaceni'] ?? '');?>" required>
                     </div>
 
                 </div>
  
-                <input type="hidden" class="form-control" id="id_auta" name="id_auta" placeholder="" value="<?php echo ($id == '') ? "" : $polehodnot[0]['id'];?>">
+                <input type="hidden" class="form-control" id="id_auta" name="id_auta" placeholder="" value="<?php echo ($id == '') ? "" : ($autoData['id'] ?? '');?>">
                 
             </div>
 
@@ -3020,8 +3239,13 @@ function nove_auto($id = '', $id2 = '')
     <?php
 }
 
+/**
+ * @param int|string $id
+ */
 function nova_zastavka($id = '')
 {    
+    $polehodnot = array();
+    $zastavkaData = array();
 
     if ($id <> '')
     {
@@ -3034,8 +3258,6 @@ function nova_zastavka($id = '')
         die("Nelze provést dotaz</body></html>");
         }            
     
-        $polehodnot = array();
-
         while ($radek = mysqli_fetch_array($vysledek, MYSQLI_ASSOC)) {
             $polehodnot[] = $radek;
         }
@@ -3049,7 +3271,8 @@ function nova_zastavka($id = '')
         
         <?php
 
-        $auto = get_spz_from_id($polehodnot[0]['auto']);
+        $zastavkaData = $polehodnot[0] ?? array();
+        $auto = get_spz_from_id($zastavkaData['auto'] ?? '');
     }
     else
     {   ?>
@@ -3058,7 +3281,7 @@ function nova_zastavka($id = '')
 
         <?php
 
-        $auto = get_spz_from_id($_GET['id']);
+        $auto = get_spz_from_id($_GET['id'] ?? '');
     }    
     ?>
 
@@ -3072,7 +3295,7 @@ function nova_zastavka($id = '')
     }
     else
     {   ?>
-            <div class="modal fade" id="ModalZastavkaInfo<?php echo $polehodnot[0]['id'];?>" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal fade" id="ModalZastavkaInfo<?php echo $zastavkaData['id'] ?? '';?>" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
         <?php
     }
     ?>
@@ -3091,53 +3314,53 @@ function nova_zastavka($id = '')
                 <div class="row">
                     <div class="col col-md-12 mt-2 text-start">
                         <label class="form-label">Název zastávky</label>
-                        <input type="text" class="form-control bg-primary-subtle" id="zastavka" name="zastavka" value="<?php echo ($id == '') ? "" : $polehodnot[0]['zastavka'];?>" required>
+                        <input type="text" class="form-control bg-primary-subtle" id="zastavka" name="zastavka" value="<?php echo ($id == '') ? "" : ($zastavkaData['zastavka'] ?? '');?>" required>
                     </div>
                 </div>
  
                 <div class="row">
                     <div class="col col-md-4 mt-2 text-start">
                         <label class="form-label">Čas Ranní</label>
-                        <input type="text" class="form-control bg-primary-subtle text-center" id="cas1" name="cas1" value="<?php echo ($id == '') ? "05:00:00" : $polehodnot[0]['cas1'];?>" required>
+                        <input type="text" class="form-control bg-primary-subtle text-center" id="cas1" name="cas1" value="<?php echo ($id == '') ? "05:00:00" : ($zastavkaData['cas1'] ?? '05:00:00');?>" required>
                     </div>
 
                     <div class="col col-md-4 mt-2 text-start">
                         <label class="form-label">Čas Odpolední</label>
-                        <input type="text" class="form-control bg-primary-subtle text-center" id="cas2" name="cas2" value="<?php echo ($id == '') ? "13:00:00" : $polehodnot[0]['cas2'];?>" required>
+                        <input type="text" class="form-control bg-primary-subtle text-center" id="cas2" name="cas2" value="<?php echo ($id == '') ? "13:00:00" : ($zastavkaData['cas2'] ?? '13:00:00');?>" required>
                     </div>
 
                     <div class="col col-md-4 mt-2 text-start">
                         <label class="form-label">Čas Noční</label>
-                        <input type="text" class="form-control bg-primary-subtle text-center" id="cas3" name="cas3" value="<?php echo ($id == '') ? "21:00:00" : $polehodnot[0]['cas3'];?>" required>
+                        <input type="text" class="form-control bg-primary-subtle text-center" id="cas3" name="cas3" value="<?php echo ($id == '') ? "21:00:00" : ($zastavkaData['cas3'] ?? '21:00:00');?>" required>
                     </div>
                 </div>
 
                 <div class="row">
                     <div class="col col-md-3 mt-2 text-start">
                         <label class="form-label">Čas NN</label>
-                        <input type="text" class="form-control bg-primary-subtle text-center" id="cas4" name="cas4" value="<?php echo ($id == '') ? "05:00:00" : $polehodnot[0]['cas4'];?>" required>
+                        <input type="text" class="form-control bg-primary-subtle text-center" id="cas4" name="cas4" value="<?php echo ($id == '') ? "05:00:00" : ($zastavkaData['cas4'] ?? '05:00:00');?>" required>
                     </div>
 
                     <div class="col col-md-3 mt-2 text-start">
                         <label class="form-label">Čas NR</label>
-                        <input type="text" class="form-control bg-primary-subtle text-center" id="cas5" name="cas5" value="<?php echo ($id == '') ? "05:00:00" : $polehodnot[0]['cas5'];?>" required>
+                        <input type="text" class="form-control bg-primary-subtle text-center" id="cas5" name="cas5" value="<?php echo ($id == '') ? "05:00:00" : ($zastavkaData['cas5'] ?? '05:00:00');?>" required>
                     </div>
 
                     <div class="col col-md-3 mt-2 text-start">
                         <label class="form-label">Čas víkend</label>
-                        <input type="text" class="form-control bg-primary-subtle text-center" id="cas6" name="cas6" value="<?php echo ($id == '') ? "05:00:00" : $polehodnot[0]['cas6'];?>" required>
+                        <input type="text" class="form-control bg-primary-subtle text-center" id="cas6" name="cas6" value="<?php echo ($id == '') ? "05:00:00" : ($zastavkaData['cas6'] ?? '05:00:00');?>" required>
                     </div>
 
                     <div class="col col-md-3 mt-2 text-start">
                         <label class="form-label">Čas přesčas</label>
-                        <input type="text" class="form-control bg-primary-subtle text-center" id="cas7" name="cas7" value="<?php echo ($id == '') ? "05:00:00" : $polehodnot[0]['cas7'];?>" required>
+                        <input type="text" class="form-control bg-primary-subtle text-center" id="cas7" name="cas7" value="<?php echo ($id == '') ? "05:00:00" : ($zastavkaData['cas7'] ?? '05:00:00');?>" required>
                     </div>
                 </div>
                 
             </div>
 
-            <input type="hidden" class="form-control" id="id_zastavky" name="id_zastavky" placeholder="" value="<?php echo ($id == '') ? "" : $polehodnot[0]['id'];?>">
-            <input type="hidden" class="form-control" id="auto" name="auto" placeholder="" value="<?php echo ($id == '') ? $_GET['id'] : $polehodnot[0]['auto'];?>">
+            <input type="hidden" class="form-control" id="id_zastavky" name="id_zastavky" placeholder="" value="<?php echo ($id == '') ? "" : ($zastavkaData['id'] ?? '');?>">
+            <input type="hidden" class="form-control" id="auto" name="auto" placeholder="" value="<?php echo ($id == '') ? ($_GET['id'] ?? '') : ($zastavkaData['auto'] ?? '');?>">
 
             <div class="modal-footer">
                 <button type="submit" class="btn btn-primary mb-3">Ulož změnu</button>
@@ -3154,6 +3377,9 @@ function nova_zastavka($id = '')
     <?php
 }
 
+/**
+ * @param int|string $id
+ */
 function nova_firma($id = '')
 {
     global $conn;
@@ -3500,6 +3726,9 @@ function novy_zamestnanec_modal()
 <?php
 }
 
+/**
+ * @param int|string $id
+ */
 function dopln_nabor($id)
 {
     global $conn;
@@ -3750,6 +3979,9 @@ function dopln_nabor($id)
 }
 
 
+/**
+ * @param int|string $id
+ */
 function dopln_naborxxx($id)
 {    
 
@@ -3995,6 +4227,9 @@ function zjisti_osobni_cislo()
 
 }
 
+/**
+ * @param string $klient
+ */
 function zjisti_firmu_z_klienta($klient)
 {
     global $conn;
@@ -4017,6 +4252,10 @@ function zjisti_firmu_z_klienta($klient)
 
 }
 
+/**
+ * @param string $datum
+ * @param string $format
+ */
 function prevod_data($datum,$format)
 {
     $date=date_create($datum);
@@ -4046,6 +4285,9 @@ function prevod_data($datum,$format)
     return $datum;
 }
 
+/**
+ * @param int|string $id
+ */
 function kontrola_dpn($id)
 {    
 
@@ -4172,6 +4414,9 @@ function kontrola_dpn($id)
     <?php
 }
 
+/**
+ * @param int $id_emp
+ */
 function over_kontrolu($id_emp)
 {
     global $conn;
@@ -4196,6 +4441,9 @@ function over_kontrolu($id_emp)
 
 }
 
+/**
+ * @param int|string $id
+ */
 function get_user_from_id($id)
 {
     global $conn;
@@ -4219,6 +4467,9 @@ function get_user_from_id($id)
 
 }
 
+/**
+ * @param int|string $id
+ */
 function pocet_kontrol_dpn_user($id)
 {
     global $conn;
@@ -4242,6 +4493,9 @@ function pocet_kontrol_dpn_user($id)
 
 }
 
+/**
+ * @param int|string $id
+ */
 function kontrola_dpn_ridic($id)
 {    
 
@@ -4332,6 +4586,9 @@ function kontrola_dpn_ridic($id)
     <?php
 }
 
+/**
+ * @param int|string $id
+ */
 function edit_zamestnanec_modal($id)
 {
     global $conn;
@@ -4703,6 +4960,10 @@ function edit_zamestnanec_modal($id)
     <?php
 }
 
+/**
+ * @param array|bool|float|int|string|null $date
+ * @param int $days
+ */
 function addDaysToDate($date, $days) {
     // Převedení data na objekt typu DateTime
     $dateObject = new DateTime($date);
@@ -4714,6 +4975,11 @@ function addDaysToDate($date, $days) {
     return $dateObject->format('Y-m-d');
 }
 
+/**
+ * @param int $year
+ * @param int $month
+ * @param int $id_zam
+ */
 function vyrob_kalendar($year, $month, $id_zam)
 {
     $year = (int)$year;
@@ -5028,6 +5294,11 @@ function vyrob_kalendar($year, $month, $id_zam)
 }
 
 
+/**
+ * @param int $year
+ * @param int $month
+ * @param int $id_zam
+ */
 function vyrob_kalendar_backup($year, $month, $id_zam)
 { ?>
 <div class="container-fluid">
@@ -5216,6 +5487,10 @@ document.getElementById('ulozPoznamkuBtn').addEventListener('click', () => {
 
 
 
+/**
+ * @param int $id_zam
+ * @param string $datum
+ */
 function kontrola_poznamky($id_zam, $datum)
 {
     global $conn;
@@ -5231,6 +5506,11 @@ function kontrola_poznamky($id_zam, $datum)
     }
 }
 
+/**
+ * @param int $year
+ * @param int $month
+ * @param string $smena
+ */
 function vyrob_kalendar_4sm($year, $month,$smena)
 {   ?>
 
@@ -5388,6 +5668,10 @@ function vyrob_kalendar_4sm($year, $month,$smena)
 
 }
 
+/**
+ * @param int $id_zam
+ * @param string $datum
+ */
 function kontrola_dochazky($id_zam,$datum)
 {
     global $conn;
@@ -5439,6 +5723,11 @@ function kontrola_dochazky($id_zam,$datum)
 
 }
 
+/**
+ * @param array<int,int|string> $zamestnanci
+ * @param string $start_day
+ * @param int $dnu
+ */
 function nacti_kontrolu_dochazky_mesic($zamestnanci, $start_day, $dnu)
 {
     global $conn;
@@ -5506,6 +5795,10 @@ function nacti_kontrolu_dochazky_mesic($zamestnanci, $start_day, $dnu)
     return $kontrola;
 }
 
+/**
+ * @param int $id_zam
+ * @param string $datum
+ */
 function check_dochazky($id_zam,$datum)
 {
     global $conn;
@@ -5538,6 +5831,10 @@ function check_dochazky($id_zam,$datum)
 
 }
 
+/**
+ * @param int $id_zam
+ * @param string $datum
+ */
 function kontrola_nepritomnosti($id_zam,$datum)
 {
     global $conn;
@@ -5563,6 +5860,12 @@ function kontrola_nepritomnosti($id_zam,$datum)
 
 }
 
+/**
+ * @param int|string $id_radek
+ * @param int $id_zam
+ * @param string $nepritomnost
+ * @param string $datum
+ */
 function update_nepritomnost_radek($id_radek,$id_zam,$nepritomnost,$datum) 
 {
     global $conn;
@@ -5585,6 +5888,11 @@ function update_nepritomnost_radek($id_radek,$id_zam,$nepritomnost,$datum)
 
 }
 
+/**
+ * @param int $id_zam
+ * @param string $nepritomnost
+ * @param string $datum
+ */
 function update_nepritomnost_datum_zam($id_zam,$nepritomnost,$datum) 
 {
     global $conn;
@@ -5607,6 +5915,11 @@ function update_nepritomnost_datum_zam($id_zam,$nepritomnost,$datum)
 
 }
 
+/**
+ * @param string $datum
+ * @param string $smena
+ * @param string $hodnota
+ */
 function vloz_data_do_smenneho_kalendare($datum,$smena,$hodnota) 
 {
     global $conn;
@@ -5660,6 +5973,10 @@ function vloz_data_do_smenneho_kalendare($datum,$smena,$hodnota)
 
 }
 
+/**
+ * @param string $datum
+ * @param string $smena
+ */
 function zjisti_data_ze_smenneho_kalendare($datum,$smena)
 {
     global $conn;
@@ -5732,6 +6049,11 @@ function cron_na_4sm()
 
 }
 
+/**
+ * @param int $id_zam
+ * @param string $datum
+ * @param string $smena
+ */
 function update_smena_4sm($id_zam,$datum,$smena) 
 {
     global $conn;
@@ -5856,6 +6178,9 @@ function modal_doprava() {
 <?php
 }
 
+/**
+ * @param string $parametr
+ */
 function ziskejPocetUkoluDleStavu($parametr) 
 {
     // Předpokládáme, že máš připojení k databázi v proměnné $conn (např. mysqli)
@@ -5938,6 +6263,9 @@ function ziskejPocetUkoluCelkove()
     return $vysledky;
 }
 
+/**
+ * @param int|string $id
+ */
 function novy_ukol($id)
 {   
     global $conn;  // Použití globální proměnné $conn
@@ -6009,6 +6337,9 @@ function novy_ukol($id)
     <?php
 }
 
+/**
+ * @param int|string $id
+ */
 function zmen_stav_ukolu($id)
 {   
     global $conn;  // Použití globální proměnné $conn
@@ -6085,6 +6416,9 @@ function zmen_stav_ukolu($id)
     <?php
 }
 
+/**
+ * @param string $parametr
+ */
 function Tabulka_Ukoly($parametr) 
 {
 
@@ -6428,9 +6762,14 @@ function filtry_zamestnanci()
     <?php
 }
 
+/**
+ * @param int|string $id
+ */
 function nova_sazba($id = '')
 {    
     global $conn;
+    $polehodnot = array();
+    $sazbaData = array();
 
     if ($id <> '') {
         $sql = "SELECT id, id_zamestnance, sazba, obdobi_od, obdobi_do, poznamka 
@@ -6441,13 +6780,12 @@ function nova_sazba($id = '')
             die("Nelze provést dotaz</body></html>");
         }            
 
-        $polehodnot = array();
-
         while ($radek = mysqli_fetch_array($vysledek, MYSQLI_ASSOC)) {
             $polehodnot[] = $radek;
         }
 
         mysqli_free_result($vysledek);
+        $sazbaData = $polehodnot[0] ?? array();
 
         $action = "sazby.php?typ=updatesazba";
     } else {
@@ -6483,7 +6821,7 @@ function nova_sazba($id = '')
                                     FROM zamestnanci ORDER BY prijmeni, jmeno";
                             $vysl = mysqli_query($conn, $sql2);
                             while ($z = mysqli_fetch_array($vysl)) {
-                                $selected = ($id <> '' && $z['id'] == $polehodnot[0]['id_zamestnance']) ? "selected" : "";
+                                $selected = ($id <> '' && $z['id'] == ($sazbaData['id_zamestnance'] ?? '')) ? "selected" : "";
                                 echo "<option value='{$z['id']}' $selected>{$z['jmeno']} {$z['prijmeni']}</option>";
                             }
                             mysqli_free_result($vysl);
@@ -6496,7 +6834,7 @@ function nova_sazba($id = '')
                         <label class="form-label">Hodinová sazba (Kč)</label>
                         <input type="number" step="0.01" class="form-control bg-primary-subtle"
                                id="sazba" name="sazba"
-                               value="<?php echo ($id == '') ? "" : htmlspecialchars($polehodnot[0]['sazba']); ?>"
+                               value="<?php echo ($id == '') ? "" : htmlspecialchars($sazbaData['sazba'] ?? ''); ?>"
                                required>
                     </div>
 
@@ -6505,7 +6843,7 @@ function nova_sazba($id = '')
                         <label class="form-label">Platnost od</label>
                         <input type="date" class="form-control bg-primary-subtle"
                                id="obdobi_od" name="obdobi_od"
-                               value="<?php echo ($id == '') ? "" : htmlspecialchars($polehodnot[0]['obdobi_od']); ?>"
+                               value="<?php echo ($id == '') ? "" : htmlspecialchars($sazbaData['obdobi_od'] ?? ''); ?>"
                                required>
                     </div>
 
@@ -6514,7 +6852,7 @@ function nova_sazba($id = '')
                         <label class="form-label">Platnost do</label>
                         <input type="date" class="form-control bg-primary-subtle"
                                id="obdobi_do" name="obdobi_do"
-                               value="<?php echo ($id == '') ? "" : htmlspecialchars($polehodnot[0]['obdobi_do']); ?>">
+                               value="<?php echo ($id == '') ? "" : htmlspecialchars($sazbaData['obdobi_do'] ?? ''); ?>">
                     </div>
 
                     <!-- Poznámka -->
@@ -6522,11 +6860,11 @@ function nova_sazba($id = '')
                         <label class="form-label">Poznámka</label>
                         <input type="text" class="form-control bg-primary-subtle"
                                id="poznamka" name="poznamka"
-                               value="<?php echo ($id == '') ? "" : htmlspecialchars($polehodnot[0]['poznamka']); ?>">
+                               value="<?php echo ($id == '') ? "" : htmlspecialchars($sazbaData['poznamka'] ?? ''); ?>">
                     </div>
 
                     <input type="hidden" id="id_sazby" name="id_sazby"
-                           value="<?php echo ($id == '') ? "" : $polehodnot[0]['id']; ?>">
+                           value="<?php echo ($id == '') ? "" : ($sazbaData['id'] ?? ''); ?>">
 
                 </div>
             </div>
@@ -6545,6 +6883,11 @@ function nova_sazba($id = '')
     <?php
 }
 
+/**
+ * @param string $prijmeni
+ * @param string $doklad
+ * @param int|string $id
+ */
 function kontrola_naboru($prijmeni, $doklad, $id = null) 
 {
     global $conn;
@@ -6573,6 +6916,9 @@ function kontrola_naboru($prijmeni, $doklad, $id = null)
 }
 
 
+/**
+ * @param int $id_zamestnance
+ */
 function getSmena($id_zamestnance)
 {
     global $conn;
@@ -6608,6 +6954,9 @@ function getSmena($id_zamestnance)
 }
 
 
+/**
+ * @param int|string $id
+ */
 function zastavky_modal($id = '')
 {
     global $conn; // připojení k DB
@@ -6802,6 +7151,10 @@ function zastavky_modal($id = '')
 <?php
 }
 
+/**
+ * @param int|string $id
+ * @param int|string $id2
+ */
 function zastavky_overview_modal($id = '',$id2 = '') 
 {
     global $conn; // připojení k DB
@@ -7569,6 +7922,7 @@ function oprav_dochazka_trasa_z_plan_smen(): array
         ];
     }
 }
+
 ?>
 
 

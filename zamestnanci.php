@@ -847,7 +847,7 @@ if (kontrola_prihlaseni() == "OK")
                     ORDER BY prijmeni, zamestnanci.smena";
         }
 
-        echo $sql;
+        //echo $sql;
 
         if (!($vysl = mysqli_query($conn, $sql))) {
             die("Nelze provést dotaz");
