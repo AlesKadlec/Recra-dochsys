@@ -456,27 +456,65 @@ Doporučený postup:
 
 #### 2.3.2 Informace k nástupům (`informace.php`)
 Co dělá:
-- zobrazuje přijaté uchazeče připravené k nástupu a jejich onboarding stav.
-- propojuje nábor s provozními údaji potřebnými před nástupem.
+- zobrazuje přijaté uchazeče (`Výsledek = Přijat`) připravené k nástupu.
+- propojuje náborovou evidenci s provozními údaji potřebnými před nástupem do směny.
+- slouží jako poslední kontrolní krok před převodem uchazeče do agendy zaměstnanců.
 
 Umožňuje:
 - evidovat doplňující nástupní informace: obuv, oblečení, telefonní kontakt, datum nástupu, směna, nástupní místo, firma, cílová stanice, osobní číslo.
 - otevřít detailní modal `EDIT` pro doplnění nástupních dat.
-- použít akci `Nástup` (u oprávněných rolí) pro převod do zaměstnanecké agendy.
-- rychle vizuálně kontrolovat připravenost přes ikonky a doplňující badge.
+- použít akci `Nástup` pro převod uchazeče do agendy zaměstnanců.
+- rychle vizuálně kontrolovat připravenost přes:
+- ikonu telefonu (`proběhl` / `neproběhl`),
+- badge velikosti bot (`B:`),
+- badge velikosti oblečení (`O:`),
+- zobrazenou plánovanou směnu.
+
+Detailní postup A: Doplňování údajů před nástupem
+1. Otevřete `2.3.2 Informace k nástupům`.
+2. V seznamu najděte uchazeče a otevřete `EDIT`.
+3. V modalu vyplňte nebo zkontrolujte:
+- `Os. č.`
+- `Datum nástupu`
+- `Velikost bot`
+- `Velikost oblečení`
+- `Telefonát` (`proběhl` / `neproběhl`)
+- `Směna`
+- `Nástupní místo`
+- `Firma`
+- `Cílová stanice`
+4. Uložte změny.
+5. Vraťte se do přehledu a ověřte, že se informace propsaly do řádku uchazeče.
+
+Detailní postup B: Převod uchazeče na zaměstnance
+1. Nejprve dokončete kontrolní údaje v `EDIT`.
+2. U správného uchazeče klikněte na `Nástup`.
+3. Systém provede převod do zaměstnanecké agendy.
+4. Zkontrolujte v `2.2.1 Přehled zaměstnanců`, že se nová osoba skutečně objevila a má správné zařazení.
+
+Detailní postup C: Operativní kontrola připravenosti
+1. Sledujte v přehledu barvu ikony telefonu:
+- zelená = telefonát proběhl,
+- červená = telefonát neproběhl / chybí.
+2. Sledujte, zda jsou vyplněné badge vybavení (`B`, `O`) a směna.
+3. Uchazeče bez kompletních údajů nepropouštějte do kroku `Nástup`.
 
 Přístup:
-- `Koordinátor`, `Administrátor`, `Náborář`.
+- přehled a editace: `Koordinátor`, `Administrátor`, `Náborář`.
+- akce `Nástup`: standardně `Koordinátor`, `Administrátor`.
 
 Nejčastější chyby:
 - uchazeč má stav `Přijat`, ale chybí povinná nástupní data.
 - není vyplněná směna/nástupní místo, takže navazující provoz nemá kompletní podklad.
 - `Nástup` je proveden bez finální kontroly údajů.
+- chybně zvolená firma nebo cílová stanice při podobných názvech.
+- neověřené osobní číslo před převodem do zaměstnanců.
 
 Doporučený postup:
 - před akcí `Nástup` vždy dokončit nástupní checklist v modalu.
 - ověřit správnost firmy, cílové stanice a směny.
 - po potvrzení nástupu zkontrolovat, že se zaměstnanec objevil v provozní agendě.
+- nekompletní záznamy držet ve stavu rozpracování a eskalovat odpovědné osobě.
 
 ### 2.4 Doprava
 #### 2.4.1 Vozový park (`vozovypark.php`)
@@ -677,13 +715,28 @@ Doporučený postup:
 
 #### 2.5.2 Logy (`logs.php`)
 Co dělá:
-- zobrazuje historii změn v systému jako auditní stopu.
-- pomáhá dohledat původ zásahu při řešení chyb nebo reklamací dat.
+- zobrazuje auditní stopu změn a systémových událostí.
+- umožňuje dohledat, kdo provedl konkrétní zásah, kdy a s jakým popisem.
+- slouží jako hlavní zdroj pro interní kontrolu a zpětné dohledání incidentů.
 
 Umožňuje:
 - prohlížet posledních 500 log záznamů od nejnovějších.
 - vidět `uživatele`, `typ operace`, `popis změny` a `datum/čas`.
 - rozeznat systémové operace (`uživatel = system`) od ručních zásahů.
+
+Detailní postup A: Vyšetření incidentu
+1. Otevřete `2.5.2 Logy`.
+2. Ujasněte si časový rámec incidentu (kdy se chyba projevila).
+3. Projděte záznamy od nejnovějších směrem dozadu.
+4. Hledejte odpovídající `typ operace` a `infotext`.
+5. Ověřte, zda změnu provedl konkrétní uživatel nebo systém (`system`).
+6. Výsledek porovnejte s daty v dotčené agendě (docházka, zaměstnanci, doprava, uživatelé).
+
+Detailní postup B: Preventivní audit změn
+1. Pravidelně kontrolujte citlivé operace (mazání záznamů, změny účtů, změny docházky).
+2. Sledujte opakované vzory chyb stejného typu.
+3. Pokud se chyby opakují, upravte interní postup nebo oprávnění role.
+4. Při závažném zásahu si ukládejte ID záznamu a datum/čas pro dohledatelnost.
 
 Přístup:
 - `Administrátor`.
@@ -691,23 +744,49 @@ Přístup:
 Nejčastější chyby:
 - uživatel očekává přístup do reportů, ale jeho role jej nemá.
 - při kontrole problému se neověří přesný čas události a zamění se podobné záznamy.
+- incident se řeší bez porovnání logu s reálným stavem dat.
+- záznam `system` je chybně považován za ruční zásah uživatele.
 
 Doporučený postup:
 - při incidentu nejprve zapsat časový rámec a jméno dotčeného uživatele/zaměstnance.
 - pak v logu dohledat odpovídající operaci a až následně provádět opravy dat.
 - logy používat i preventivně při kontrole citlivých změn.
+- po opravě dat zkontrolovat v logu, že navazující kroky proběhly v očekávaném pořadí.
 
 ### 2.6 Zaměstnanci
 #### 2.6.1 Hodinové sazby (`sazby.php`)
 Co dělá:
 - eviduje hodinové sazby zaměstnanců včetně časové platnosti.
 - umožňuje držet historii změn sazeb v čase.
+- slouží jako mzdový podklad pro správné vyhodnocení období.
 
 Umožňuje:
 - založit novou sazbu přes tlačítko `Nová sazba`.
 - upravit existující sazbu přes tlačítko `E` (editace řádku).
 - pracovat s poli `zaměstnanec`, `sazba`, `platnost od`, `platnost do`, `poznámka`.
 - mít aktivní sazbu i bez koncového data (`platnost do` prázdná).
+- zobrazit sazby v chronologii podle zaměstnance a období.
+
+Detailní postup A: Založení nové sazby
+1. Otevřete `2.6.1 Hodinové sazby`.
+2. Klikněte na `Nová sazba`.
+3. V modalu vyberte zaměstnance.
+4. Zadejte `sazbu` (Kč/hod), `platnost od`, volitelně `platnost do` a `poznámku`.
+5. Uložte záznam.
+6. Zkontrolujte v tabulce, že se nová sazba objevila u správného zaměstnance.
+
+Detailní postup B: Editace existující sazby
+1. V tabulce najděte správný řádek sazby.
+2. Klikněte na `E`.
+3. Upravte potřebná pole (sazba, období, poznámka).
+4. Uložte změnu.
+5. Ověřte, že v přehledu není u stejného období kolize.
+
+Detailní postup C: Kontrola návaznosti období
+1. U jednoho zaměstnance porovnejte řádky podle `platnost od`.
+2. Ověřte, že se období nepřekrývají.
+3. Pokud je sazba aktuální, nechte `platnost do` prázdnou.
+4. Při změně sazby nejdřív ukončete předchozí období a potom založte nové.
 
 Přístup:
 - `Administrátor`, `Mzdový účetní`.
@@ -716,16 +795,19 @@ Nejčastější chyby:
 - překryv období platnosti u stejného zaměstnance.
 - chybně zapsaná sazba (desetinná čárka/tečka nebo jednotky).
 - opomenutí vyplnit poznámku u mimořádné změny.
+- úprava sazby u špatného zaměstnance při podobném jménu.
 
 Doporučený postup:
 - před uložením nové sazby ověřit, že časově navazuje na předchozí období.
 - používat jednotný zápis sazeb a vždy kontrolovat výsledný řádek v tabulce.
 - u mimořádných sazeb doplnit důvod do poznámky kvůli auditní dohledatelnosti.
+- po každé úpravě provést rychlou kontrolu dalších navazujících řádků stejného zaměstnance.
 
 #### 2.6.2 XML převody (`xml.php`)
 Co dělá:
 - převádí docházkové XML do formátu pro systém Premier.
 - mapuje zákaznická osobní čísla na Premier ID podle interních dat zaměstnanců.
+- připravuje exportní XML ke stažení tak, aby bylo použitelné v návazném systému.
 
 Umožňuje:
 - nahrát vstupní `.xml` soubor (max 10 MB).
@@ -733,6 +815,30 @@ Umožňuje:
 - vygenerovat export, kde se upraví `osobni_cislo`, `cislo_pracovniho_pomeru` a normalizuje `pracovni_pomer`.
 - stáhnout exportní XML soubor připravený ke zpracování.
 - zapnout debug režim (`?debug=1`) pro detailní troubleshooting.
+- oddělit kontroly po uploadu a po exportu (včetně seznamu nepřeložených hodnot).
+
+Detailní postup A: Standardní převod XML
+1. Otevřete `2.6.2 XML převody`.
+2. Klikněte na `Vyberte XML soubor` a nahrajte vstupní `.xml`.
+3. Po uploadu zkontrolujte hlášku:
+- zda se soubor načetl,
+- kolik osobních čísel nešlo přeložit.
+4. Klikněte na `Vygenerovat export pro Premier`.
+5. Po vygenerování klikněte na `Stáhnout export`.
+6. Export uložte pod správným názvem období a předejte ke zpracování.
+
+Detailní postup B: Řešení nepřeložených osobních čísel
+1. Pokud systém vypíše nepřeložené hodnoty, zapište si je.
+2. Ověřte mapování v `zamestnanci` (`os_cislo_klient` -> `os_cislo`).
+3. Doplňte/opravte chybějící mapování.
+4. Nahrajte XML znovu a opakujte export.
+5. Teprve po snížení/odstranění nepřeložených hodnot použijte finální soubor.
+
+Detailní postup C: Kdy použít debug režim
+1. Při nejasné chybě otevřete stránku s `?debug=1`.
+2. Proveďte upload/export znovu.
+3. Zkontrolujte debug log ve spodní části stránky.
+4. Log použijte při předání incidentu správci.
 
 Přístup:
 - stránka podporuje role `Administrátor`, `Koordinátor`, `Manažer dopravy`.
@@ -741,11 +847,14 @@ Nejčastější chyby:
 - nahrán není XML soubor, ale jiný formát.
 - chybí mapování osobních čísel, proto část záznamů nelze přeložit.
 - uživatel neprovede finální kontrolu seznamu nepřeložených hodnot.
+- export je vygenerován, ale není stažen (zůstane jen připraven na stránce).
+- uživatel spustí export nad neaktuálně nahraným souborem.
 
 Doporučený postup:
 - po uploadu vždy projít hlášku o nepřeložených osobních číslech.
 - chybějící mapování doplnit v zaměstnaneckých datech a export zopakovat.
 - exportní soubor stáhnout a archivovat spolu s měsícem/obdobím.
+- před předáním dál ověřit, že byl použit správný vstupní soubor i správná verze exportu.
 
 Kdo má přístup:
 - `Hodinové sazby`: `Administrátor`, `Mzdový účetní`.
@@ -755,6 +864,7 @@ Kdo má přístup:
 Co dělá:
 - spravuje uživatelské účty, role, aktivitu účtu a přiřazení firem/dopravy.
 - zajišťuje, aby každý účet měl správná oprávnění pro konkrétní agendu.
+- řídí, kdo vidí které části systému a s jakým rozsahem dat.
 
 Umožňuje:
 - zobrazit přehled účtů včetně role, přiřazené firmy, autobusu a stavu `aktivní/neaktivní`.
@@ -762,6 +872,39 @@ Umožňuje:
 - editovat existující účet (role, firmy, autobus, aktivita, e-mail).
 - při editaci přiřadit více firem přes multi-select.
 - měnit hesla přes samostatný formulář se dvojím potvrzením.
+- vizuálně rozlišit aktivní a neaktivní účty v přehledu.
+
+Role v systému (textově):
+- `Koordinátor`
+- `Řidič`
+- `Teamleader`
+- `Manažer dopravy`
+- `Administrátor`
+- `Náborář`
+- `Mzdový účetní`
+
+Detailní postup A: Založení nového uživatele
+1. Otevřete `2.7 Uživatelé`.
+2. Klikněte na `Nový uživatel` (u role s oprávněním).
+3. Vyplňte `uživatel`, `heslo`, `aktivní/neaktivní`, `firma`, `autobus`, `email`, `typ účtu`.
+4. Uložte záznam.
+5. Ověřte v přehledu, že nový účet má správnou roli i přiřazení.
+
+Detailní postup B: Editace oprávnění a přiřazení
+1. V přehledu najděte účet a otevřete `Edit`.
+2. Upravte:
+- stav účtu (`Aktivní/Neaktivní`),
+- roli,
+- přiřazené firmy (multi-select),
+- autobus a e-mail.
+3. Uložte změny.
+4. Po uložení doporučeně ověřte práva přihlášením pod daným účtem.
+
+Detailní postup C: Změna hesla
+1. V přehledu účtů klikněte na ikonu klíče.
+2. Vyplňte nové heslo do obou polí.
+3. Potvrďte změnu.
+4. Ověřte, že se uživatel umí novým heslem přihlásit.
 
 Přístup:
 - menu vstup: `Koordinátor`, `Manažer dopravy`, `Administrátor`.
@@ -772,19 +915,30 @@ Nejčastější chyby:
 - špatně přiřazená role způsobí chybějící nebo naopak nadbytečné menu.
 - zapomenuté přiřazení firmy zablokuje práci v provozních tabulkách.
 - heslo je změněno bez ověření přihlášení daného uživatele.
+- uživatel zůstane neaktivní a je chybně považován za „nefunkční účet“.
+- koordinátor se pokusí měnit účty mimo svůj oprávněný rozsah.
 
 Doporučený postup:
 - po každé změně účtu provést rychlou kontrolu práv po novém přihlášení.
 - u role vždy zároveň zkontrolovat přiřazené firmy a autobus.
 - nepoužívat sdílené účty, každý uživatel má mít vlastní identitu v logách.
+- před změnou role si vždy ujasnit, jaké menu má uživatel po změně reálně potřebovat.
 
 ### 2.8 Odhlásit (`odhlasit.php`)
 Co dělá:
 - bezpečně ukončuje uživatelskou relaci.
+- zapisuje odhlášení do logu systému.
 
 Umožňuje:
 - odhlásit účet jedním kliknutím z hlavního menu.
 - předejít nechtěnému použití účtu na sdíleném zařízení.
+- po odhlášení automaticky přesměrovat na přihlašovací stránku.
+
+Detailní postup:
+1. V menu klikněte na `Odhlásit`.
+2. Systém ukončí session přihlášeného uživatele.
+3. Zobrazí se potvrzení odhlášení.
+4. Následně proběhne přesměrování na `login.php`.
 
 Přístup:
 - všichni přihlášení uživatelé.
@@ -797,14 +951,25 @@ Doporučený postup:
 - vždy končit práci přes `Odhlásit`.
 - po odhlášení ověřit zobrazení přihlašovací stránky.
 - na sdíleném zařízení zavřít i prohlížeč.
+- na sdílených terminálech neponechávat stránku otevřenou ani po timeoutu.
 
 ### 2.9 Informace o přihlášeném uživateli (pravá část menu)
 Co dělá:
 - zobrazuje aktuálně přihlášené jméno a text role (např. `Řidič`, `Koordinátor`, `Administrátor`).
+- slouží jako okamžitá kontrola identity účtu při práci v citlivých agendách.
 
 Umožňuje:
 - rychlou kontrolu, že uživatel pracuje pod správným účtem.
 - jednodušší diagnostiku problémů s právy a viditelností menu.
+- rychlé ověření role při předávání směny mezi uživateli na stejném zařízení.
+
+Detailní postup:
+1. Při otevření systému vždy zkontrolujte pravý horní roh menu.
+2. Ověřte:
+- jméno přihlášeného uživatele,
+- text role (`Řidič`, `Koordinátor`, `Teamleader`, `Manažer dopravy`, `Administrátor`, `Náborář`, `Mzdový účetní`).
+3. Pokud údaje nesedí, nepokračujte v práci a proveďte odhlášení/přihlášení správným účtem.
+4. Při hlášení problému vždy uvádějte i tento údaj o roli.
 
 Přístup:
 - všichni přihlášení uživatelé.
@@ -845,36 +1010,62 @@ Po otevření stránky uvidíte:
 
 ## 5. Jak filtrovat docházku
 ### 5.1 Filtr podle dne
-1. V poli **Výběr dne** zvolte datum.
-2. Vyberte směnu a případně zakázku.
-3. Klikněte na **Proveď výběr**.
+Kdy použít:
+- když řešíte operativu konkrétního dne nebo směny.
+
+Postup:
+1. V poli **Výběr dne** nastavte požadované datum.
+2. Zvolte směnu (`R`, `O`, `N`, `R+O+N`, `R+O+N bez vlastní dopravy`, `Všechny`).
+3. Volitelně nastavte `Zakázku` (cílovou stanici).
+4. Klikněte na **Proveď výběr**.
+5. V horním textu stránky zkontrolujte, že je opravdu zobrazen správný den a směna.
+
+Nejčastější chyba:
+- je vyplněný i měsíc a uživatel očekává denní výstup (měsíc má prioritu).
 
 `[VLOŽIT SCREENSHOT: Výběr dne + Proveď výběr]`
 
 ### 5.2 Filtr podle měsíce
-1. V poli **Výběr měsíce** zvolte měsíc.
-2. Klikněte na **Proveď výběr**.
+Kdy použít:
+- při uzávěrkách, měsíčních kontrolách a přípravě reportů.
 
-Poznámka: Pokud je vyplněný měsíc, zobrazí se záznamy za celý měsíc.
+Postup:
+1. V poli **Výběr měsíce** vyberte měsíc (`YYYY-MM`).
+2. Nastavte směnu a případně zakázku.
+3. Klikněte na **Proveď výběr**.
+4. Ověřte, že výpis odpovídá celému měsíci (ne jen jednomu dni).
+
+Důležité pravidlo:
+- pokud je vyplněný měsíc, systém filtruje celý měsíc a přebíjí filtr konkrétního dne.
 
 `[VLOŽIT SCREENSHOT: Výběr měsíce]`
 
 ### 5.3 Význam směn
-- **R** = ranní
-- **O** = odpolední
-- **N** = noční
-- **R+O+N** = všechny tyto směny
-- **Bez vlastní dopravy** = záznamy bez vlastní dopravy
-- **Všechny směny** = bez omezení směny
+- **R**: ranní směna.
+- **O**: odpolední směna.
+- **N**: noční směna.
+- **R+O+N**: kombinovaný přehled standardních směn.
+- **R+O+N bez vlastní dopravy**: standardní směny bez záznamů s vlastní dopravou.
+- **Všechny směny**: bez omezení na konkrétní směnový typ.
+
+Doporučení:
+- pro operativní kontrolu používejte konkrétní směnu.
+- pro sumární kontrolu používejte `R+O+N` nebo `Všechny`.
 
 ---
 
 ## 6. Jak pracovat s tabulkou
+Tabulka slouží pro kontrolu i export dat. Je vhodné pracovat v tomto pořadí:
+1. Nejprve nastavte filtry (den/měsíc/směna/zakázka).
+2. Potom použijte vyhledávání v tabulce.
+3. Až nakonec exportujte nebo tiskněte.
+
 V tabulce můžete:
-- vyhledávat přes pole hledání,
-- měnit zobrazené sloupce,
-- exportovat data,
-- tisknout.
+- vyhledávat globálně přes vyhledávací pole.
+- měnit viditelné sloupce tlačítkem **Sloupce**.
+- exportovat výsledky přes **Excel** a **PDF**.
+- vytvořit tiskový výstup přes **Tisk**.
+- vyčistit tabulkové hledání přes **Reset filtrů**.
 
 Nad tabulkou najdete tlačítka:
 - **Excel**
@@ -882,6 +1073,11 @@ Nad tabulkou najdete tlačítka:
 - **Tisk**
 - **Sloupce**
 - **Reset filtrů**
+
+Kontrola před exportem:
+1. Ověřte aktivní filtr dne/měsíce.
+2. Ověřte aktivní směnu a zakázku.
+3. Zkontrolujte, že v tabulce nejsou nechtěně skryté důležité sloupce.
 
 `[VLOŽIT SCREENSHOT: Tlačítka nad tabulkou]`
 
@@ -896,11 +1092,24 @@ Postup:
 3. Vyberte den (dnes / včera).
 4. Potvrďte tlačítkem **Vložit docházkový záznam**.
 
-Systém automaticky doplní směnu, nástupní místo a čas podle nastavení zaměstnance.
+Systém automaticky doplní:
+- směnu,
+- nástupní místo,
+- firmu,
+- autobus/trasa,
+- čas nástupu dle nastavení zaměstnance.
+
+Kontrola po vložení:
+1. Vyhledejte zaměstnance v tabulce.
+2. Ověřte datum, směnu, zastávku a čas.
+3. Pokud cokoliv nesedí, proveďte okamžitou korekci přes `EDIT`.
 
 `[VLOŽIT SCREENSHOT: Modal Vložení docházky]`
 
 Pokud už záznam pro daný den existuje, systém vložení nepovolí a zobrazí hlášku.
+
+Nejčastější chyba:
+- ruční vložení se provede dřív, než je u zaměstnance opravená směna nebo nástupní místo.
 
 ---
 
@@ -919,16 +1128,39 @@ Možné hodnoty:
 - **ABS**
 - **Záznam úplně smazat**
 
+Kdy použít `Záznam úplně smazat`:
+- jen pokud víte, že řádek byl vložen chybně.
+- po smazání už záznam v tabulce nebude dostupný a je nutné případně vložit jej znovu.
+
+Kontrola po editaci:
+1. Ověřte řádek v tabulce.
+2. Ověřte, že se změna propsala do správného dne a osoby.
+3. U kritických změn ověřte návazný dopad v reportech.
+
 `[VLOŽIT SCREENSHOT: Editace záznamu]`
 
 ---
 
 ## 9. Nejčastější situace
 ### 9.1 „Nevidím tlačítko Vložení docházky“
-Nemáte oprávnění pro ruční vkládání. Obraťte se na správce.
+Možné příčiny:
+- účet nemá oprávnění pro ruční vkládání,
+- jste přihlášen pod jiným účtem, než očekáváte.
+
+Doporučené řešení:
+1. Zkontrolujte jméno a roli v pravé části menu.
+2. Pokud role neodpovídá, odhlaste se a přihlaste správným účtem.
+3. Pokud role odpovídá, ale tlačítko stále chybí, kontaktujte správce práv.
 
 ### 9.2 „Nevidím tlačítko EDIT“
-Nemáte oprávnění pro editaci záznamů.
+Možné příčiny:
+- účet je pouze pro čtení,
+- pracujete v části, kde se editace standardně nenabízí.
+
+Doporučené řešení:
+1. Ověřte roli uživatele.
+2. Ověřte, že jste v přehledu, kde je editace povolená.
+3. Pokud má být editace dostupná, požádejte správce o kontrolu oprávnění.
 
 ### 9.3 „Nenašel jsem žádná data“
 Zkontrolujte:
@@ -936,18 +1168,37 @@ Zkontrolujte:
 - zvolenou směnu,
 - zakázku (zkuste hodnotu **Vše**).
 
+Doplňující kontrola:
+1. Vyčistěte tabulkové hledání přes **Reset filtrů**.
+2. Zkuste širší filtr (`Všechny směny`, `Zakázka = Vše`).
+3. Ověřte, že nejste omezeni přiřazením jen na některé firmy.
+
 ### 9.4 „Nejde vložit docházka“
 Pravděpodobně už pro zaměstnance existuje záznam v daný den.
+
+Doporučené řešení:
+1. Vyhledejte zaměstnance a datum v tabulce.
+2. Pokud záznam existuje, použijte `EDIT` místo nového vložení.
+3. Pokud je záznam chybný, upravte nepřítomnost nebo záznam smažte a vložte správně.
 
 ---
 
 ## 10. Doporučený denní postup
+Ranní kontrola:
 1. Otevřít **Docházka**.
-2. Nastavit filtr (dnes + požadovaná směna).
-3. Zkontrolovat přehled.
-4. Dle potřeby doplnit chybějící záznamy.
-5. Dle potřeby upravit nepřítomnosti.
-6. Exportovat nebo vytisknout výstup.
+2. Nastavit filtr na dnešek a první kontrolovanou směnu.
+3. Ověřit, že jsou data načtena ve správném kontextu (směna, zakázka, období).
+
+Operativní práce během dne:
+1. Doplňovat chybějící docházku pouze po kontrole, že záznam neexistuje.
+2. Opravovat nepřítomnosti přes `EDIT`.
+3. Po každém zásahu krátce ověřit výsledek v tabulce.
+
+Uzávěrka směny/dne:
+1. Přepnout směnu a zopakovat kontrolu.
+2. Vyčistit tabulkové filtry, zkontrolovat finální výstup.
+3. Exportovat/tisknout pouze finálně ověřená data.
+4. Odhlásit se ze systému.
 
 ---
 
