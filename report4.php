@@ -109,14 +109,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'set_
 
     .poznamka-symbol {
         position: absolute;
-        top: 2px;
-        left: 2px;
-        font-size: 0.7em;
+        top: 1px;
+        left: 1px;
+        font-size: 0.9rem;
+        width: 18px;
+        height: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         cursor: pointer;
-        color: rgba(0, 0, 0, 0.5);
-        background-color: transparent;
-        padding: 0 2px;
-        border-radius: 2px;
+        color: #0d6efd;
+        background-color: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(13, 110, 253, 0.45);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        border-radius: 50%;
+        z-index: 2;
+    }
+    .poznamka-symbol:hover {
+        transform: scale(1.08);
+        background-color: #ffffff;
     }
 </style>
 
@@ -806,7 +817,7 @@ $transport_span = "<span class='tooltip-symbol ms-1' data-bs-toggle='tooltip' da
                     $symbol_html = '';
                     if (!empty($poznamka)) {
                         $symbol_html = "<span class='poznamka-symbol' data-bs-toggle='tooltip' data-bs-placement='top' title='"
-                                        . htmlspecialchars($poznamka, ENT_QUOTES) . "'>&#x1F4DD;</span>";
+                                        . htmlspecialchars($poznamka, ENT_QUOTES) . "'><i class='bi bi-chat-left-text-fill'></i></span>";
                     }
 
                     echo "<td class='text-center $barva $extra_border' style='position: relative;'>$symbol_html<b>$hodnota</b></td>";

@@ -83,6 +83,10 @@ if (kontrola_prihlaseni() == "OK")
                 $where[] = "dochazka.smena = '$smena'";
             }
 
+            if ($smena !== "ALL") {
+                $where[] = "(dochazka.nepritomnost IS NULL OR TRIM(dochazka.nepritomnost) = '')";
+            }
+
             // Filtr zakazky (cilove stanice)
             if ($cilova_filtr !== "ALL" && $cilova_filtr !== "") {
                 $cilovaSafe = mysqli_real_escape_string($conn, $cilova_filtr);
