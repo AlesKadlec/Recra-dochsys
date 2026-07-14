@@ -120,7 +120,8 @@ function load_station_counts(mysqli $conn, string $startDay, string $endDay): ar
         WHERE d.datum BETWEEN ? AND ?
           AND TRIM(z.cilova) <> ''
           AND z.os_cislo REGEXP '^[0-9]+$'
-          AND COALESCE(UPPER(TRIM(d.smena)), '') <> 'VOL'
+          AND UPPER(TRIM(d.smena)) IN ('R','O','N')
+          AND (d.nepritomnost IS NULL OR TRIM(d.nepritomnost) = '')
         GROUP BY UPPER(TRIM(z.cilova)), DATE(d.datum)
         ORDER BY cilova_norm, den
     ";
@@ -173,7 +174,8 @@ function load_day_totals(mysqli $conn, string $startDay, string $endDay, array $
         WHERE d.datum BETWEEN ? AND ?
           AND TRIM(z.cilova) <> ''
           AND z.os_cislo REGEXP '^[0-9]+$'
-          AND COALESCE(UPPER(TRIM(d.smena)), '') <> 'VOL'
+          AND UPPER(TRIM(d.smena)) IN ('R','O','N')
+          AND (d.nepritomnost IS NULL OR TRIM(d.nepritomnost) = '')
         GROUP BY DATE(d.datum)
     ";
 
