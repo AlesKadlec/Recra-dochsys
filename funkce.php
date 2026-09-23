@@ -5135,7 +5135,8 @@ function vyrob_kalendar($year, $month, $id_zam)
 
                                     // --- 7 buněk pro dny (pondělí..neděle) ---
                                     for ($d = 0; $d < 7; $d++) {
-                                        $dayTimestamp = $current + $d * 86400;
+                                        // Posun po kalendarnich dnech zachova pulnoc i pri zmene letniho casu.
+                                        $dayTimestamp = strtotime("+{$d} days", $current);
                                         $dayYear  = (int) date('Y', $dayTimestamp);
                                         $dayMonth = (int) date('n', $dayTimestamp);
                                         $dayDay   = (int) date('j', $dayTimestamp);
@@ -5202,7 +5203,8 @@ function vyrob_kalendar($year, $month, $id_zam)
                                     }
 
                                     echo "</tr>";
-                                    $current = $current + 7 * 86400;
+                                    // Pevnych 7 * 86400 sekund pri prechodu na zimni cas vracelo nedeli 23:00.
+                                    $current = strtotime('+7 days', $current);
                                 }
 
 
